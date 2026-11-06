@@ -1,0 +1,16 @@
+{% extends 'base_admin.html' %}
+{% block title %}Storage{% endblock %}
+{% block heading %}<h1>Storage &amp; infrastructure</h1><p>Direct from Neon and Cloudinary.</p>{% endblock %}
+{% block content %}
+<div class="grid g3">
+  <div class="card kpi">{{ ui.icon('database') }}<b>{{ db_size or '—' }}</b><span>Neon database size</span></div>
+  <div class="card kpi">{{ ui.icon('image') }}<b>{{ usage.storage_h or '—' }}</b><span>Cloudinary storage (live){% if usage.resources %} · {{ usage.resources }} assets{% endif %}</span></div>
+  <div class="card kpi">{{ ui.icon('server') }}<b>{{ o.stored_h }}</b><span>Tracked in archive · {{ o.files }} files</span></div>
+</div>
+<div class="card mt"><h2>Cloudinary</h2>
+{% if usage %}<dl class="kv mt"><dt>Plan</dt><dd>{{ usage.plan or '—' }}</dd><dt>Bandwidth</dt><dd>{{ usage.bandwidth_h }}</dd><dt>Credits</dt><dd>{{ usage.credits or '—' }} / {{ usage.credits_limit or '—' }}{% if usage.credits_pct %} ({{ usage.credits_pct }}%){% endif %}</dd></dl>
+{% elif usage_error %}<p class="muted mt">Could not read usage: {{ usage_error }}</p>{% else %}<p class="muted mt">Cloudinary is {{ 'connected' if cloud else 'not configured' }}.</p>{% endif %}</div>
+<div class="card mt"><h2>Trash auto-purge</h2><p class="muted mt">{{ pending }} file(s) older than {{ retention }} days are due for permanent deletion. This runs automatically every hour and via the scheduler endpoint.</p>
+<form method="post" action="{{ url_for('admin.purge_now') }}" class="mt" data-confirm="Permanently delete all expired trash now?">{{ ui.csrf() }}<button class="btn danger sm">{{ ui.icon('trash') }}Purge expired now</button></form></div>
+<div class="card mt"><h2>Per-user storage</h2>{% for t in o.top_users %}<div class="mt"><div class="row between small"><a href="{{ url_for('admin.user_detail', user_id=t.id) }}"><b>{{ t.username }}</b></a><span class="muted">{{ t.bytes_h }}</span></div><div class="bar"><i data-w="{{ [ (t.bytes*100/ (o.stored or 1))|round(1), 100]|min }}"></i></div></div>{% endfor %}</div>
+{% endblock %}

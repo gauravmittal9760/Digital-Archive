@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Smart search{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Smart search</h1><p>Ask naturally — Hindi, English or both.</p></div></div>
+<form method="get" class="search-box mb">{{ ui.icon('search') }}<input name="q" value="{{ q }}" placeholder="meri 10th ki marksheet · diwali photos · medical report 2024" autofocus style="padding-top:.95rem;padding-bottom:.95rem;font-size:1.05rem"></form>
+{% if q %}
+  {% if intent and (intent.categories or intent.corrected or intent.year) %}<div class="row mb small muted">AI understood:
+    {% for c in intent.categories %}<span class="chip">{{ CATEGORY_LABEL[c] }}</span>{% endfor %}{% if intent.year %}<span class="chip">{{ intent.year }}</span>{% endif %}
+    {% for a,b in intent.corrected.items() %}<span class="chip ai">{{ a }} → {{ b }}</span>{% endfor %}</div>{% endif %}
+  {% if results %}<div class="media-grid">{% for m in results %}<div>{{ ui.media_card(m) }}<div class="small muted" style="margin:.3rem .2rem">{{ m.why }}</div></div>{% endfor %}</div>
+  {% else %}<div class="empty">{{ ui.icon('search') }}<h3>No match for “{{ q }}”</h3><p>Try fewer words or a category such as “medical” or “travel”.</p></div>{% endif %}
+{% else %}
+  <div class="filters">{% for s in ['meri 10th ki marksheet','aadhaar card','diwali photos','medical report','travel videos','bill receipt'] %}<a class="pill" href="{{ url_for('intelligence.search', q=s) }}">{{ s }}</a>{% endfor %}</div>
+{% endif %}
+{% endblock %}

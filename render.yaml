@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: digital-archive
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 app:app
+    healthCheckPath: /health
+    envVars:
+      - {key: APP_ENV, value: production}
+      - {key: SECRET_KEY, generateValue: true}
+      - {key: PYTHON_VERSION, value: "3.12.3"}
+      - {key: DATABASE_URL, sync: false}
+      - {key: PUBLIC_BASE_URL, sync: false}
+      - {key: CLOUDINARY_CLOUD_NAME, sync: false}
+      - {key: CLOUDINARY_API_KEY, sync: false}
+      - {key: CLOUDINARY_API_SECRET, sync: false}
+      - {key: BREVO_API_KEY, sync: false}
+      - {key: BREVO_SENDER_EMAIL, sync: false}
+      - {key: GEMINI_API_KEY, sync: false}
+      - {key: CRON_SECRET, sync: false}
+      - {key: ADMIN_USERNAME, sync: false}
+      - {key: ADMIN_PASSWORD, sync: false}
+      - {key: ADMIN_PANEL_PASSWORD, sync: false}
+      - {key: ADMIN_EMAIL, sync: false}
+      - {key: ADMIN_SECURITY_QUESTION, sync: false}
+      - {key: ADMIN_SECURITY_ANSWER, sync: false}

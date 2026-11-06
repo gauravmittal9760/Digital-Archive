@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}{{ item.file_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1 style="word-break:break-word">{{ item.file_name }}</h1><p>{{ item.size_h }} · added {{ item.created_at|dt }}</p></div>
+  <div class="row">
+    <form method="post" action="{{ url_for('media.favorite', media_id=item.id) }}">{{ ui.csrf() }}<button class="btn ghost sm">{{ ui.icon('heart') }}{{ 'Unfavorite' if item.is_favorite else 'Favorite' }}</button></form>
+    <a class="btn ghost sm" href="{{ url_for('media.file', media_id=item.id, download=1) }}">{{ ui.icon('download') }}Download</a>
+  </div></div>
+<div class="split">
+  <div>
+    <div class="viewer">
+      {% if item.media_type=='photo' %}<img src="{{ item.url }}" alt="{{ item.file_name }}">
+      {% elif item.media_type=='video' %}<video src="{{ item.url }}" controls preload="metadata"></video>
+      {% elif item.mime_type=='application/pdf' %}<iframe src="{{ item.url }}" title="PDF"></iframe>
+      {% else %}<div class="empty" style="color:#fff">{{ ui.icon('file') }}<p>Preview not available.</p></div>{% endif %}
+    </div>
+  </div>
+  <div class="stack">
+    <div class="card"><h3>AI category</h3>
+      <div class="row mt"><span class="chip" style="background:color-mix(in srgb,{{ item.category_color }} 18%,transparent);color:{{ item.category_color }}"><i class="dot" style="--c:{{ item.category_color }}"></i>{{ item.category_label }}</span>
+        {% if item.ai_confidence %}<span class="muted small">{{ (item.ai_confidence*100)|round|int }}% sure</span>{% endif %}
+        {% if item.category_locked %}<span class="chip mute">{{ ui.icon('lock') }}set by you</span>{% endif %}</div>
+      {% if item.ai_caption %}<p class="mt small">{{ item.ai_caption }}</p>{% endif %}
+      <form method="post" action="{{ url_for('media.reanalyze', media_id=item.id) }}" class="mt">{{ ui.csrf() }}<button class="btn ghost sm">{{ ui.icon('refresh') }}Re-analyse</button></form></div>
+    <form method="post" action="{{ url_for('media.update_media', media_id=item.id) }}" class="card">{{ ui.csrf() }}<h3 class="mb">Details</h3>
+      <label class="field"><span>Category</span><select name="category"><option value="auto">Auto (AI decides)</option>{% for c in CATEGORIES %}<option value="{{ c[0] }}" {{ 'selected' if item.category_locked and item.category==c[0] }}>{{ c[1] }}</option>{% endfor %}</select></label>
+      <label class="field"><span>Note</span><textarea name="description">{{ item.description or '' }}</textarea></label>
+      <label class="field"><span>Tags</span><input name="tags" value="{{ item.tags or '' }}" placeholder="comma separated"></label>
+      <button class="btn block">{{ ui.icon('check') }}Save</button></form>
+    <div class="card"><h3 class="mb">Actions</h3><div class="stack">
+      <form method="post" action="{{ url_for('media.create_share', media_id=item.id) }}" class="row">{{ ui.csrf() }}<select name="expires_hours" style="width:auto"><option value="1">1 hour</option><option value="24" selected>1 day</option><option value="168">7 days</option><option value="720">30 days</option></select><button class="btn soft sm">{{ ui.icon('link') }}Share link</button></form>
+      <a class="btn ghost sm" href="{{ url_for('media.versions', media_id=item.id) }}">{{ ui.icon('clock') }}Versions ({{ versions }})</a>
+      <form method="post" action="{{ url_for('media.replace', media_id=item.id) }}" enctype="multipart/form-data" class="row">{{ ui.csrf() }}<input type="file" name="file" required style="flex:1"><button class="btn ghost sm">Replace</button></form>
+      <form method="post" action="{{ url_for('media.delete_media', media_id=item.id) }}" data-confirm="Move this file to trash?">{{ ui.csrf() }}<button class="btn danger ghost sm block">{{ ui.icon('trash') }}Move to trash</button></form>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

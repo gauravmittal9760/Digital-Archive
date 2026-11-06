@@ -1,0 +1,29 @@
+{% extends 'auth/_layout.html' %}
+{% block title %}Create account{% endblock %}
+{% block auth_back %}{{ ui.back(url_for('auth.login')) }}{% endblock %}
+{% block auth_body %}
+<h1>Create your archive</h1>
+<p>Takes under a minute.</p>
+<form method="post" class="card">
+  {{ ui.csrf() }}
+  <div class="grid g2" style="gap:0 1rem">
+    <label class="field"><span>Username</span><input name="username" value="{{ form.get('username','') }}" autocomplete="username" autocapitalize="none" required minlength="3" maxlength="30"><div class="hint">Letters, numbers, . - _</div></label>
+    <label class="field"><span>Display name</span><input name="display_name" value="{{ form.get('display_name','') }}" maxlength="100"></label>
+  </div>
+  <label class="field"><span>E-mail</span><input type="email" name="email" value="{{ form.get('email','') }}" autocomplete="email" required><div class="hint">Used for recovery codes only.</div></label>
+  <div class="grid g2" style="gap:0 1rem">
+    {{ ui.pw('password','Password','At least 8 characters','new-password') }}
+    {{ ui.pw('confirm_password','Confirm password','','new-password') }}
+  </div>
+  <label class="field"><span>Security question</span>
+    <select name="question" id="q" required>
+      {% for q in questions %}<option value="{{ q }}" {{ 'selected' if form.get('question')==q }}>{{ q }}</option>{% endfor %}
+      <option value="__custom__" {{ 'selected' if form.get('question')=='__custom__' }}>Write my own question…</option>
+    </select></label>
+  <label class="field hide" id="customWrap"><span>Your question</span><input name="custom_question" value="{{ form.get('custom_question','') }}" maxlength="200"></label>
+  <label class="field"><span>Answer</span><input name="answer" autocomplete="off" required><div class="hint">Used to recover your password. Case doesn’t matter.</div></label>
+  <button class="btn block" type="submit">{{ ui.icon('check') }}Create account</button>
+  <div class="auth-links"><span class="muted">Already registered?</span><a href="{{ url_for('auth.login') }}">Sign in</a></div>
+</form>
+<script>(function(){var s=document.getElementById('q'),w=document.getElementById('customWrap');function f(){w.classList.toggle('hide',s.value!=='__custom__')}s.addEventListener('change',f);f()})();</script>
+{% endblock %}

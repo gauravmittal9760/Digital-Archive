@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Add to album{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Add to “{{ album.name }}”</h1><p>Tick the memories to add.</p></div></div>
+{% if items %}<form method="post">{{ ui.csrf() }}<div class="media-grid" data-selectable-simple>{% for m in items %}<label style="display:block;cursor:pointer;position:relative">
+  <input type="checkbox" name="media_ids" value="{{ m.id }}" style="position:absolute;z-index:3;left:.6rem;top:.6rem;width:20px;height:20px">{{ ui.media_card(m) }}</label>{% endfor %}</div>
+  <div class="mt"><button class="btn">{{ ui.icon('plus') }}Add selected</button></div></form>
+<style>[data-selectable-simple] .m-card a.cover{display:none}</style>
+{% else %}<div class="empty"><h3>Everything is already in this album</h3></div>{% endif %}
+{% endblock %}

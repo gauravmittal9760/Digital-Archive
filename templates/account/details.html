@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Account details{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Account details</h1></div></div>
+<div class="card" style="max-width:720px"><dl class="kv">
+  <dt>Username</dt><dd>@{{ current_user.username }}</dd><dt>Display name</dt><dd>{{ current_user.display_name or '—' }}</dd><dt>E-mail</dt><dd>{{ current_user.email }}</dd>
+  <dt>Account created</dt><dd>{{ current_user.created_at|dt }}</dd><dt>Last sign-in</dt><dd>{{ current_user.last_login_at|dt }}</dd>
+  <dt>Two-step</dt><dd>{{ 'On' if current_user.two_step_enabled else 'Off' }}</dd><dt>Security question</dt><dd>{{ 'Set' if current_user.security_question else 'Not set' }}</dd></dl></div>
+<div class="sec-title"><h2>Sign-in records</h2></div>
+<div class="table-wrap"><table><thead><tr><th>When</th><th>IP address</th><th>Device</th></tr></thead><tbody>
+{% for l in logins %}<tr><td>{{ l.created_at|dt }}</td><td>{{ l.ip_address or '—' }}</td><td class="wrap small">{{ (l.user_agent or '—')[:70] }}</td></tr>{% else %}<tr><td colspan="3" class="muted">No records.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

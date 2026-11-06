@@ -1,0 +1,64 @@
+{% import 'partials/ui.html' as ui %}
+<!doctype html>
+<html lang="en" data-theme="{{ theme }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<meta name="color-scheme" content="light dark">
+<title>{% block title %}Digital Archive{% endblock %} · Digital Archive</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%233341E8'/%3E%3Cpath d='M18 24h28v22H18zM22 18h20' stroke='white' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+<script>try{var t=localStorage.getItem('da_theme');if(t&&!document.cookie.includes('da_theme=')){document.documentElement.dataset.theme=t}}catch(e){}</script>
+{% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+{% include 'partials/sprite.html' %}
+<header class="topbar"><div class="in">
+  <a class="brand" href="{{ url_for('main.dashboard') if current_user else url_for('auth.login') }}"><span class="logo">{{ ui.icon('database') }}</span><span>Digital Archive</span></a>
+  {% if current_user %}
+  <nav class="nav">
+    <a href="{{ url_for('main.dashboard') }}" class="{{ 'on' if request.endpoint=='main.dashboard' }}">{{ ui.icon('home') }}Home</a>
+    <a href="{{ url_for('media.gallery') }}" class="{{ 'on' if request.endpoint=='media.gallery' }}">{{ ui.icon('grid') }}Library</a>
+    <a href="{{ url_for('intelligence.search') }}" class="{{ 'on' if request.endpoint=='intelligence.search' }}">{{ ui.icon('search') }}Search</a>
+    <a href="{{ url_for('media.upload') }}" class="{{ 'on' if request.endpoint=='media.upload' }}">{{ ui.icon('upload') }}Upload</a>
+  </nav>
+  {% endif %}
+  <div class="top-right">
+    <button class="icon-btn theme-toggle" type="button" id="themeToggle" aria-label="Switch theme" title="Switch theme">
+      <svg class="ic sun"><use href="#i-sun"/></svg><svg class="ic moon"><use href="#i-moon"/></svg>
+    </button>
+    {% if current_user %}
+    <div class="menu" id="userMenu">
+      <button class="icon-btn" style="padding:0;border-radius:50%" type="button" data-menu aria-label="Account menu">
+        {% if avatar_url %}<img class="avatar" src="{{ avatar_url }}" alt="">{% else %}<span class="avatar">{{ (current_user.display_name or current_user.username)[:1]|upper }}</span>{% endif %}
+      </button>
+      <div class="menu-pop">
+        <div class="who"><b>{{ current_user.display_name or current_user.username }}</b><div class="small muted">@{{ current_user.username }}</div></div>
+        <a href="{{ url_for('account.profile') }}">{{ ui.icon('user') }}Profile</a>
+        <a href="{{ url_for('account.settings') }}">{{ ui.icon('settings') }}Settings</a>
+        <form method="post" action="{{ url_for('auth.logout') }}">{{ ui.csrf() }}<button type="submit">{{ ui.icon('logout') }}Sign out</button></form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div></header>
+{% if announcement %}<div class="announce {{ announcement.level }}">{{ announcement.message }}</div>{% endif %}
+<div class="toasts" id="toasts">
+{% with msgs = get_flashed_messages(with_categories=true) %}{% for cat, msg in msgs %}
+  <div class="toast {{ cat }}" role="status">{{ ui.icon({'success':'check','error':'alert'}.get(cat,'info')) }}<div>{{ msg }}</div><button type="button" data-close aria-label="Dismiss">{{ ui.icon('x') }}</button></div>
+{% endfor %}{% endwith %}
+</div>
+{% block shell %}
+<main class="page">
+  {% block back %}{% if back_url is defined and back_url %}{{ ui.back(back_url) }}{% elif current_user and request.endpoint != 'main.dashboard' %}{{ ui.back(url_for('main.dashboard')) }}{% endif %}{% endblock %}
+  {% block content %}{% endblock %}
+</main>
+{% endblock %}
+<button class="icon-btn to-top" id="toTop" type="button" aria-label="Back to top">{{ ui.icon('arrow-up') }}</button>
+<script>window.DA={csrf:"{{ csrf_token() }}",themeUrl:"{{ url_for('account.set_theme') }}"};</script>
+<script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+{% block scripts %}{% endblock %}
+</body></html>

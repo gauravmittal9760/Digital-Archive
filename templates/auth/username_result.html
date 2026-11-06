@@ -1,0 +1,7 @@
+{% extends 'auth/_layout.html' %}
+{% block title %}Your usernames{% endblock %}
+{% block auth_body %}
+<h1>Here you go</h1><p>Usernames registered with {{ email }}:</p>
+{% for u in usernames %}<div class="userchip"><span class="avatar md">{{ u[:1]|upper }}</span>{{ u }}</div>{% else %}<div class="card muted">No usernames found.</div>{% endfor %}
+<a class="btn block mt" href="{{ url_for('auth.login') }}">{{ ui.icon('lock') }}Go to sign in</a>
+{% endblock %}

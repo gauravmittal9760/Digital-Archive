@@ -1,0 +1,10 @@
+{% extends 'base_admin.html' %}
+{% block title %}Admin recovery{% endblock %}
+{% block body %}<div class="gate"><div class="box">
+  <a class="back" href="{{ url_for('admin.gateway') }}">{{ ui.icon('arrow-left') }}Back</a>
+  <div class="vault">{{ ui.icon('key') }}</div><h1>Recover access</h1><p class="sub">Verify it’s you to set a new password.</p>
+  <div class="stack">
+    {% if has_question %}<a class="opt" href="{{ url_for('admin.forgot_question') }}"><span class="i">{{ ui.icon('shield') }}</span><div><b>Security question</b><span>Answer your recovery question</span></div></a>{% endif %}
+    {% if has_email %}<a class="opt" href="{{ url_for('admin.forgot_otp') }}"><span class="i">{{ ui.icon('mail') }}</span><div><b>E-mail code</b><span>Send a 6-digit code to the admin e-mail</span></div></a>{% endif %}
+    {% if not has_question and not has_email %}<p class="muted center">No recovery method configured in .env.</p>{% endif %}
+  </div></div></div>{% endblock %}

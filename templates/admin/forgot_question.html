@@ -1,0 +1,6 @@
+{% extends 'base_admin.html' %}
+{% block title %}Security question{% endblock %}
+{% block body %}<div class="gate"><div class="box">
+  <a class="back" href="{{ url_for('admin.forgot') }}">{{ ui.icon('arrow-left') }}Back</a>
+  <div class="vault">{{ ui.icon('shield') }}</div><h1>Security question</h1><p class="sub">{{ question }}</p>
+  <form method="post">{{ ui.csrf() }}<label class="field"><span>Answer</span><input name="answer" autocomplete="off" required autofocus></label><button class="btn block">{{ ui.icon('check') }}Verify</button></form></div></div>{% endblock %}

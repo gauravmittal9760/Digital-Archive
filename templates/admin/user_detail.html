@@ -1,0 +1,23 @@
+{% extends 'base_admin.html' %}
+{% block title %}{{ u.username }}{% endblock %}
+{% block back_url %}{{ url_for('admin.users_page') }}{% endblock %}
+{% block heading %}<h1>{{ u.username }}</h1><p>{{ u.email }}</p>{% endblock %}
+{% block content %}
+<div class="grid g2">
+  <div class="card"><h2 class="mb">Account</h2><dl class="kv"><dt>Display name</dt><dd>{{ u.display_name or '—' }}</dd><dt>Created</dt><dd>{{ u.created_at|dt }}</dd><dt>Last login</dt><dd>{{ u.last_login_at|dt }}</dd><dt>Status</dt><dd>{% if u.is_blocked %}<span class="chip err">Blocked</span> {{ u.blocked_reason or '' }}{% elif locked %}<span class="chip warn">Temp-locked</span>{% else %}<span class="chip ok">Active</span>{% endif %}</dd><dt>Two-step</dt><dd>{{ 'On' if u.two_step_enabled else 'Off' }}</dd><dt>Security Q</dt><dd>{{ 'Set' if u.security_question else 'Not set' }}</dd></dl>
+    <div class="row mt">{% if u.is_blocked or locked %}<form method="post" action="{{ url_for('admin.unblock', user_id=u.id) }}">{{ ui.csrf() }}<button class="btn ok sm">{{ ui.icon('unlock') }}Unblock</button></form>{% endif %}
+    {% if not u.is_blocked %}<form method="post" action="{{ url_for('admin.block', user_id=u.id) }}" class="row">{{ ui.csrf() }}<input name="reason" placeholder="Reason" style="width:160px"><button class="btn danger sm">{{ ui.icon('ban') }}Block</button></form>{% endif %}</div></div>
+  <div class="card"><h2 class="mb">Storage</h2><div class="row" style="gap:1.4rem"><div class="donut" style="--stops:var(--a) 0 {{ breakdown.percent }}%,rgba(255,255,255,.08) 0"><b>{{ breakdown.percent|round|int }}%</b></div>
+    <div class="grow"><b style="font:800 1.6rem var(--display)">{{ breakdown.used_h }}</b><div class="muted small">of {{ breakdown.quota_h }} (database)</div>
+    {% for t in breakdown.types %}<div class="small mt">{{ t.type|title }} · {{ t.count }} · {{ t.bytes_h }}</div>{% endfor %}<div class="small muted">Trash: {{ breakdown.trash_count }} · {{ breakdown.trash_h }}</div>
+    <button class="btn ghost sm mt" id="cl" type="button">{{ ui.icon('refresh') }}Live Cloudinary size</button> <span id="clv" class="small"></span></div></div></div>
+</div>
+<div class="sec-title mt2"><h2>Stored media preview</h2></div>
+{% if items %}<div class="media-grid">{% for m in items %}<div class="tile"><div class="im">{% if m.thumb_url %}<img src="{{ m.thumb_url }}" alt="" loading="lazy">{% else %}{{ ui.icon('file') }}{% endif %}</div><div class="m"><b>{{ m.file_name }}</b><span class="muted">{{ m.category_label }} · {{ m.size_h }}</span></div></div>{% endfor %}</div>{% else %}<p class="muted">No files stored.</p>{% endif %}
+<div class="grid g2 mt2">
+  <div class="card"><h2 class="mb">Account history</h2><ul class="timeline">{% for e in events %}<li><b>{{ (e.event_type or '')|replace('_',' ')|title }}</b><div class="small muted">{{ e.details }} · {{ e.created_at|dt }}</div></li>{% else %}<li class="muted">No events.</li>{% endfor %}</ul></div>
+  <div class="card"><h2 class="mb">Login records</h2><div class="table-wrap" style="border:0"><table><tbody>{% for l in logins %}<tr><td>{{ l.created_at|dt }}</td><td>{{ l.ip_address or '—' }}</td></tr>{% else %}<tr><td class="muted">None</td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+<form method="post" action="{{ url_for('admin.delete_user', user_id=u.id) }}" class="card mt2" style="border-color:var(--err)" data-confirm="Permanently delete this account and all files?">{{ ui.csrf() }}<h2 style="color:var(--err)">Delete account</h2><p class="muted small mb">Type the username “{{ u.username }}” to confirm. Files are removed from Cloudinary too.</p><div class="row"><input name="confirm" placeholder="{{ u.username }}" style="max-width:260px" autocomplete="off"><button class="btn danger">{{ ui.icon('trash') }}Delete</button></div></form>
+{% endblock %}
+{% block scripts %}{% endblock %}

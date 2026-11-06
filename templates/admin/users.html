@@ -1,0 +1,13 @@
+{% extends 'base_admin.html' %}
+{% block title %}Users{% endblock %}
+{% block heading %}<h1>User management</h1><p>{{ users|length }} account{{ 's' if users|length!=1 }} shown.</p>{% endblock %}
+{% block content %}
+<form class="row mb" method="get"><input name="q" value="{{ q }}" placeholder="Search username or e-mail" style="max-width:320px">
+  <select name="status" style="width:auto" onchange="this.form.submit()">{% for k in ['all','active','blocked','locked'] %}<option value="{{ k }}" {{ 'selected' if status==k }}>{{ k|title }}</option>{% endfor %}</select>
+  <select name="sort" style="width:auto" onchange="this.form.submit()">{% for k,l in [('newest','Newest'),('storage','Storage'),('name','Name'),('login','Last login')] %}<option value="{{ k }}" {{ 'selected' if sort==k }}>{{ l }}</option>{% endfor %}</select><button class="btn sm">Search</button></form>
+<div class="table-wrap"><table><thead><tr><th>User</th><th>E-mail</th><th>Storage</th><th>Files</th><th>Created</th><th>Last login</th><th>Status</th></tr></thead><tbody>
+{% for u in users %}<tr data-href="{{ url_for('admin.user_detail', user_id=u.id) }}"><td><b>{{ u.username }}</b></td><td>{{ u.email }}</td>
+<td><div class="row" style="gap:.6rem;flex-wrap:nowrap"><div class="bar" style="width:90px"><i data-w="{{ u.percent }}"></i></div><span class="small">{{ u.bytes_h }}</span></div></td><td>{{ u.files }}</td><td>{{ u.created_at|dt('%d %b %Y') }}</td><td>{{ u.last_login_at|ago }}</td>
+<td>{% if u.is_blocked %}<span class="chip err">Blocked</span>{% elif u.locked %}<span class="chip warn">Locked</span>{% else %}<span class="chip ok">Active</span>{% endif %}{% if u.two_step_enabled %} <span class="chip">2-step</span>{% endif %}</td></tr>
+{% else %}<tr><td colspan="7" class="muted">No users.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

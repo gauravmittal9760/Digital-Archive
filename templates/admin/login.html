@@ -1,0 +1,8 @@
+{% extends 'base_admin.html' %}
+{% block title %}Admin login{% endblock %}
+{% block body %}<div class="gate"><div class="box">
+  <a class="back" href="{{ url_for('admin.gateway') }}">{{ ui.icon('arrow-left') }}Back</a>
+  <div class="vault">{{ ui.icon('lock') }}</div><h1>Admin password</h1><p class="sub">Enter the panel password to enter.</p>
+  <form method="post">{{ ui.csrf() }}<label class="field"><span>Password</span><input type="password" name="password" autocomplete="current-password" required autofocus></label>
+  <button class="btn block">{{ ui.icon('unlock') }}Enter admin panel</button></form>
+  <p class="sub" style="margin:1rem 0 0"><a href="{{ url_for('admin.forgot') }}">Forgot password?</a></p></div></div>{% endblock %}

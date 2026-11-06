@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Categories{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Auto categories</h1><p>{{ total }} files sorted by AI. Wrong? Open a file and change it — the model learns from you.</p></div>
+  <form method="post" action="{{ url_for('media.rescan_all') }}">{{ ui.csrf() }}<button class="btn ghost sm">{{ ui.icon('refresh') }}Re-scan all with AI</button></form></div>
+<div class="bento">{% for c in cards %}
+  <a class="tile" style="--t:{{ c.color }};{{ 'opacity:.55' if not c.count }}" href="{{ url_for('media.gallery', category=c.id) }}">
+    {% if c.cover %}<div style="height:110px;border-radius:12px;overflow:hidden;margin:-.3rem -.3rem .2rem"><img src="{{ c.cover }}" alt="" style="width:100%;height:100%;object-fit:cover" loading="lazy"></div>{% else %}<span class="ico">{{ ui.icon('tag') }}</span>{% endif %}
+    <h3>{{ c.label }}</h3><p>{{ c.help }}</p><span class="go">{{ c.count }} file{{ 's' if c.count!=1 }} {{ ui.icon('chevron-right') }}</span></a>
+{% endfor %}</div>
+{% endblock %}

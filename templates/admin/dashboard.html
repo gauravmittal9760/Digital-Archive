@@ -1,0 +1,22 @@
+{% extends 'base_admin.html' %}
+{% block title %}Overview{% endblock %}
+{% block heading %}<h1>Command center</h1><p>Live from Neon database &amp; Cloudinary.</p>{% endblock %}
+{% block content %}
+<div class="grid g4" data-live="{{ url_for('admin.api_overview') }}">
+  <div class="card kpi" data-tilt>{{ ui.icon('users') }}<b data-count="{{ o.users }}">0</b><span>Accounts created</span></div>
+  <div class="card kpi" data-tilt>{{ ui.icon('database') }}<b>{{ o.stored_h }}</b><span>Total stored · {{ o.files }} files</span></div>
+  <div class="card kpi" data-tilt>{{ ui.icon('activity') }}<b data-k="active_24">{{ o.active_24 }}</b><span>Active in 24 h</span></div>
+  <div class="card kpi" data-tilt>{{ ui.icon('ban') }}<b data-k="blocked">{{ o.blocked }}</b><span>Blocked · {{ o.locked }} temp-locked</span></div>
+</div>
+<div class="grid g2 mt">
+  <div class="card"><div class="row between"><h2>Sign-ups, last 30 days</h2><span class="chip">{{ o.new_30 }} new</span></div><div class="mt" data-chart='{{ o.signups|tojson }}'></div></div>
+  <div class="card"><h2>Storage by user</h2><div class="mt">{% for t in o.top_users %}<a href="{{ url_for('admin.user_detail', user_id=t.id) }}" style="color:inherit;display:block;margin-bottom:.8rem"><div class="row between small"><b>{{ t.username }}</b><span class="muted">{{ t.bytes_h }} · {{ t.files }} files</span></div><div class="bar"><i data-w="{{ [ (t.bytes*100/ (o.stored or 1))|round(1), 100]|min }}"></i></div></a>{% else %}<p class="muted">No users yet.</p>{% endfor %}</div></div>
+</div>
+<div class="grid g3 mt">
+  <div class="card"><h3>Compression</h3><p class="muted small mt">Space saved by smart compression</p><b style="font:800 1.8rem var(--display)">{{ o.saved_h }}</b></div>
+  <div class="card"><h3>Trash</h3><p class="muted small mt">{{ o.trash_files }} files waiting · auto-purged after 30 days</p><b style="font:800 1.8rem var(--display)">{{ o.trash_h }}</b></div>
+  <div class="card"><h3>Two-step users</h3><p class="muted small mt">Accounts with 2-step on</p><b style="font:800 1.8rem var(--display)">{{ o.two_step }} / {{ o.users }}</b></div>
+</div>
+<div class="card mt"><div class="row between"><h2>Latest account activity</h2><a href="{{ url_for('admin.events_page') }}">All events →</a></div>
+<ul class="timeline mt" style="padding-left:1.4rem">{% for e in o.events %}<li><b>{{ (e.event_type or '')|replace('_',' ')|title }}</b> · {{ e.username or '—' }}<div class="small muted">{{ e.details }} · {{ e.created_at|dt }}</div></li>{% else %}<li class="muted">Nothing yet.</li>{% endfor %}</ul></div>
+{% endblock %}

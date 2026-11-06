@@ -1,0 +1,11 @@
+# Keeps the site awake and permanently deletes trash older than 30 days even if nobody logs in.
+# Add repository secrets: SITE_URL (https://your-app.onrender.com) and CRON_SECRET (same as in .env).
+name: purge-trash
+on:
+  schedule: [{cron: "0 */6 * * *"}]
+  workflow_dispatch:
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl -fsS "${{ secrets.SITE_URL }}/cron/purge?key=${{ secrets.CRON_SECRET }}"

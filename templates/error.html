@@ -1,0 +1,4 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block shell %}<main class="page"><div class="err-box"><div class="code">{{ code }}</div><h2 style="margin:.6rem 0">{{ title }}</h2><p class="muted">{{ message }}</p>
+<div class="row mt" style="justify-content:center"><a class="back-btn" href="{{ back_url }}" data-back>{{ ui.icon('arrow-left') }}<span>Back</span></a></div></div></main>{% endblock %}

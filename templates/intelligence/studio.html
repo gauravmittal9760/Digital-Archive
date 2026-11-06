@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}AI &amp; ML Studio{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>AI &amp; ML Studio</h1><p>Models running on your archive — {{ ai_mode }}.</p></div></div>
+<div class="grid g4"><div class="card stat"><b>{{ counts.total }}</b><span>Analysed files</span></div><div class="card stat"><b>{{ counts.categorised }}</b><span>Categorised</span></div><div class="card stat"><b>{{ counts.groups }}</b><span>Auto groups</span></div><div class="card stat"><b>{{ counts.outliers }}</b><span>Unusual files</span></div></div>
+<div class="card mt"><h2>Category mix</h2>{% if distribution %}<div class="catbar mt">{% for d in distribution %}<i style="--c:{{ d.color }};--w:{{ (d.count*100/counts.total)|round(1) }}%"></i>{% endfor %}</div>
+<div class="row mt small">{% for d in distribution %}<span><i class="dot" style="--c:{{ d.color }}"></i> {{ d.label }} · {{ d.count }}</span>{% endfor %}</div>{% else %}<p class="muted">Upload files first.</p>{% endif %}</div>
+{% if clusters %}<div class="sec-title"><h2>Groups found by K-Means</h2></div>{% for c in clusters %}<div class="card mb"><div class="row between"><h3>{{ c.label }}</h3><span class="chip">{{ c.count }}</span></div><div class="media-grid mt">{% for m in c['items'][:6] %}{{ ui.media_card(m) }}{% endfor %}</div></div>{% endfor %}{% endif %}
+{% if anomalies %}<div class="sec-title"><h2>Unusual files</h2></div><div class="media-grid">{% for m in anomalies %}<div>{{ ui.media_card(m) }}<div class="small muted" style="margin:.3rem .2rem">{{ m.anomaly_reason }}</div></div>{% endfor %}</div>{% endif %}
+{% endblock %}

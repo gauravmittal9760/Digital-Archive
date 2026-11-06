@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Versions{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Versions</h1><p>{{ item.file_name }}</p></div></div>
+<div class="stack form-narrow" style="max-width:720px">
+  <div class="list-row"><span class="ico">{{ ui.icon('check') }}</span><div class="grow"><b>Current version</b><span>{{ item.size_h }}</span></div></div>
+  {% for v in versions %}<div class="list-row"><span class="ico">{{ ui.icon('clock') }}</span><div class="grow"><b>{{ v.created_at|dt }}</b><span>{{ v.size_h }}</span></div>
+    <form method="post" action="{{ url_for('media.restore_version', media_id=item.id, version_id=v.id) }}">{{ ui.csrf() }}<button class="btn soft sm">Restore</button></form></div>
+  {% else %}<p class="muted">No older versions. Replacing the file keeps the old one here.</p>{% endfor %}
+</div>
+{% endblock %}

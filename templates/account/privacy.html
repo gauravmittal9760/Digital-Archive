@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}Privacy &amp; AI{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Privacy &amp; AI</h1></div></div>
+<form method="post" class="card" style="max-width:720px">{{ ui.csrf() }}
+  <div class="setting-row" style="padding-top:0"><div class="grow"><b>AI picture analysis</b><span>{% if vision %}Sends a small, downsized copy of new pictures to Google’s free Gemini service to understand photos better.{% else %}Cloud vision is not configured, so only on-server models are used.{% endif %}</span></div>
+    <label class="switch"><input type="checkbox" name="ai_enabled" value="1" {{ 'checked' if current_user.ai_enabled }}><i></i></label></div>
+  <p class="hint">Turn off to keep everything on this server. Documents with text are still sorted locally.</p><button class="btn mt">{{ ui.icon('check') }}Save</button></form>
+{% endblock %}

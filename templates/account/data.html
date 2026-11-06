@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Your data{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Your data</h1></div></div>
+<div class="stack" style="max-width:720px">
+  <a class="list-row" href="{{ url_for('account.export_json') }}"><span class="ico">{{ ui.icon('download') }}</span><div class="grow"><b>Export information (JSON)</b><span>Account, file list and activity.</span></div></a>
+  <a class="list-row" href="{{ url_for('media.download_all') }}"><span class="ico">{{ ui.icon('folder') }}</span><div class="grow"><b>Download all files (ZIP)</b><span>Organised in folders by category.</span></div></a>
+  <form method="post" action="{{ url_for('account.delete_account') }}" class="card" style="border-color:var(--err)" data-confirm="This permanently deletes your account and every file. Continue?">{{ ui.csrf() }}<h3 style="color:var(--err)">Delete account</h3><p class="muted small mb">This removes everything immediately and cannot be undone.</p>
+    {{ ui.pw('current_password','Current password') }}<label class="field"><span>Type DELETE</span><input name="confirm" autocomplete="off" required></label><button class="btn danger sm">{{ ui.icon('trash') }}Delete forever</button></form>
+</div>
+{% endblock %}

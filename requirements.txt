@@ -1,0 +1,14 @@
+Flask>=3.0,<4
+Werkzeug>=3.0,<4
+gunicorn>=22.0
+python-dotenv>=1.0
+Pillow>=10.3
+SQLAlchemy>=2.0,<2.1
+psycopg[binary]>=3.1
+cloudinary>=1.40
+pypdf>=4.0
+numpy>=1.26
+onnxruntime>=1.17      # free offline picture recognition (MobileNetV2, ~14 MB model auto-downloaded)
+# optional (adds ~30 MB): bundled ffmpeg for local video compression
+# imageio-ffmpeg>=0.5
+pytesseract==0.3.13

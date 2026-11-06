@@ -1,0 +1,8 @@
+{% extends 'base_admin.html' %}
+{% block title %}Media explorer{% endblock %}
+{% block heading %}<h1>Media explorer</h1><p>Preview of what users have stored{% if user_id %} (filtered){% endif %}.</p>{% endblock %}
+{% block content %}
+{% if user_id %}<a class="pill on mb" style="display:inline-block" href="{{ url_for('admin.media_page') }}">Clear filter ✕</a>{% endif %}
+<div class="media-grid">{% for m in items %}<div class="tile"><div class="im">{% if m.thumb_url %}<img src="{{ m.thumb_url }}" alt="" loading="lazy">{% else %}{{ ui.icon('video' if m.media_type=='video' else 'file') }}{% endif %}</div>
+<div class="m"><b>{{ m.file_name }}</b><span class="muted">{{ m.owner }} · {{ m.category_label }} · {{ m.size_h }}</span></div></div>{% else %}<p class="muted">No media.</p>{% endfor %}</div>
+{% endblock %}

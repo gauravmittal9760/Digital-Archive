@@ -1,0 +1,35 @@
+{% import 'partials/ui.html' as ui %}
+<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>{% block title %}Admin{% endblock %} · Digital Archive Admin</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%237C5CFF'/%3E%3C/svg%3E">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}"></head>
+<body class="adm">
+{% include 'partials/sprite.html' %}
+<canvas id="fx"></canvas><div class="aurora"></div>
+<div class="toasts">{% with msgs = get_flashed_messages(with_categories=true) %}{% for cat,msg in msgs %}<div class="toast {{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}</div>
+{% block body %}
+{% set nav = [('dashboard','admin.dashboard','home','Overview'),('users','admin.users_page','users','Users'),('blocked','admin.blocked','ban','Blocked'),('events','admin.events_page','activity','Account events'),('logins','admin.logins_page','key','Login records'),('media','admin.media_page','image','Media explorer'),('storage','admin.storage_page','database','Storage'),('announcements','admin.announcements_page','megaphone','Announcements'),('system','admin.system_page','server','System'),('profile','admin.profile','user','My profile')] %}
+<div class="shell">
+  <aside class="side">
+    <a class="logo" href="{{ url_for('admin.dashboard') }}"><i>{{ ui.icon('shield') }}</i><div>Archive Admin<small>CONTROL CENTER</small></div></a>
+    <nav>{% for key,ep,ic,label in nav %}<a href="{{ url_for(ep) }}" class="{{ 'on' if page==key }}">{{ ui.icon(ic) }}<span>{{ label }}</span></a>{% endfor %}</nav>
+    <div class="bottom"><button class="btn ghost sm" data-cmdk type="button">{{ ui.icon('command') }}<span>Ctrl K</span></button>
+      <form method="post" action="{{ url_for('admin.logout') }}">{{ ui.csrf() }}<button class="btn danger sm block">{{ ui.icon('logout') }}Sign out</button></form></div>
+  </aside>
+  <main class="main">
+    <div class="top">
+      <div class="avatar-rot" data-rotate>{% for u in admin_avatar_urls %}<img src="{{ u }}" alt="">{% endfor %}<span class="ph">A</span></div>
+      <div class="grow">{% block heading %}{% endblock %}</div>
+      <span class="chip ok"><i class="live"></i> secure session</span>
+    </div>
+    {% if page != 'dashboard' %}<a class="back" href="{% block back_url %}{{ url_for('admin.dashboard') }}{% endblock %}" data-back>{{ ui.icon('arrow-left') }}Back</a>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+<div class="cmdk" id="cmdk"><div class="p"><input placeholder="Jump to… (users, events, storage)">{% for key,ep,ic,label in nav %}<a href="{{ url_for(ep) }}">{{ ui.icon(ic) }}{{ label }}</a>{% endfor %}</div></div>
+{% endblock %}
+<script src="{{ url_for('static', filename='js/admin.js') }}" defer></script>
+<script>document.addEventListener('click',function(e){var a=e.target.closest('[data-back]');if(a&&history.length>1&&document.referrer.indexOf(location.origin)===0){e.preventDefault();history.back()}})</script>
+<script>(function(){var b=document.getElementById("cl");if(!b)return;b.addEventListener("click",function(){b.disabled=true;fetch("{{ url_for('admin.user_cloudinary', user_id=u.id) if u is defined else '' }}").then(function(r){return r.json()}).then(function(j){document.getElementById("clv").textContent=j.available?j.bytes_h+" · "+(j.count||0)+" files":"Cloudinary not connected";b.disabled=false})})})()</script>
+</body></html>

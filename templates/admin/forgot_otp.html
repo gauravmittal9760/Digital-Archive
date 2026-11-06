@@ -1,0 +1,7 @@
+{% extends 'base_admin.html' %}
+{% block title %}E-mail code{% endblock %}
+{% block body %}<div class="gate"><div class="box">
+  <a class="back" href="{{ url_for('admin.forgot') }}">{{ ui.icon('arrow-left') }}Back</a>
+  <div class="vault">{{ ui.icon('mail') }}</div><h1>E-mail code</h1><p class="sub">Code goes to {{ masked }}. Valid for 10 minutes.</p>
+  <form method="post">{{ ui.csrf() }}<label class="field"><span>6-digit code</span><input class="otp" name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••"></label><button class="btn block">{{ ui.icon('check') }}Verify</button></form>
+  <form method="post" class="mt" style="text-align:center">{{ ui.csrf() }}<input type="hidden" name="action" value="send"><button class="btn ghost sm" id="rs" {{ 'disabled' if wait }}>{{ ui.icon('mail') }}Send / resend code</button><div class="small muted mt" data-countdown="{{ wait or 0 }}" data-target="#rs"></div></form></div></div>{% endblock %}

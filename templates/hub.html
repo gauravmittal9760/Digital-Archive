@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}{{ hub.title }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>{{ hub.title }}</h1><p>{{ hub.blurb }}</p></div></div>
+<div class="stack form-narrow" style="max-width:720px">
+  {% for i in items %}
+  <a class="list-row" href="{{ i.url }}"><span class="ico">{{ ui.icon(i.icon) }}</span><div class="grow"><b>{{ i.label }}</b><span>{{ i.desc }}</span></div>{{ ui.icon('chevron-right') }}</a>
+  {% endfor %}
+</div>
+{% endblock %}

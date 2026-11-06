@@ -1,0 +1,10 @@
+{% extends 'auth/_layout.html' %}
+{% block title %}Account recovery{% endblock %}
+{% block auth_back %}{{ ui.back(url_for('auth.login')) }}{% endblock %}
+{% block auth_body %}
+<h1>Account recovery</h1><p>What do you need help with?</p>
+<div class="stack">
+  <a class="method" href="{{ url_for('auth.forgot_username') }}"><span class="ico">{{ ui.icon('user') }}</span><div><b>I forgot my username</b><span>We’ll e-mail a code, then show every username on your address.</span></div></a>
+  <a class="method" href="{{ url_for('auth.forgot_password') }}"><span class="ico">{{ ui.icon('key') }}</span><div><b>I forgot my password</b><span>Reset it with your security question or an e-mail code.</span></div></a>
+</div>
+{% endblock %}

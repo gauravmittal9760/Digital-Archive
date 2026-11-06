@@ -1,0 +1,19 @@
+{% macro icon(name, cls='') -%}<svg class="ic {{ cls }}" aria-hidden="true"><use href="#i-{{ name }}"/></svg>{%- endmacro %}
+{% macro csrf() -%}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{%- endmacro %}
+{% macro back(url) -%}<a class="back-btn" href="{{ url }}" data-back>{{ icon('arrow-left') }}<span>Back</span></a>{%- endmacro %}
+{% macro pw(name, label, placeholder='', autocomplete='current-password', id=None) -%}
+<label class="field"><span>{{ label }}</span><div class="pw-wrap"><input type="password" name="{{ name }}" {% if id %}id="{{ id }}"{% endif %} placeholder="{{ placeholder }}" autocomplete="{{ autocomplete }}" required><button type="button" class="pw-toggle" data-pw-toggle aria-label="Show password">{{ icon('eye') }}</button></div></label>
+{%- endmacro %}
+{% macro media_card(m, select=False) -%}
+<article class="m-card" {% if m.ai_status == 'pending' %}data-ai-pending="{{ m.id }}"{% endif %}>
+  <a class="cover" href="{{ url_for('media.detail', media_id=m.id) }}" aria-label="{{ m.file_name }}"></a>
+  <div class="m-thumb">
+    {% if m.thumb_url %}<img src="{{ m.thumb_url }}" alt="" loading="lazy">{% else %}<span class="ph">{{ icon('video' if m.media_type=='video' else 'file') }}</span>{% endif %}
+    {% if m.media_type=='video' %}<span class="m-play">{{ icon('play') }}</span>{% endif %}
+  </div>
+  <span class="m-badge"><i class="dot" style="--c:{{ m.category_color }}"></i><span>{{ 'Analysing…' if m.ai_status == 'pending' else m.category_label }}</span></span>
+  {% if select %}<label class="m-pick"><input type="checkbox" value="{{ m.id }}"></label>
+  <button type="button" class="m-fav {{ 'on' if m.is_favorite }}" data-url="{{ url_for('media.favorite', media_id=m.id) }}" aria-label="Favorite">{{ icon('heart') }}</button>{% endif %}
+  <div class="m-meta"><b>{{ m.file_name }}</b><span>{{ m.size_h }}{% if m.created_at %} · {{ m.created_at|dt('%d %b %Y') }}{% endif %}</span></div>
+</article>
+{%- endmacro %}

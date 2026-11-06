@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+{% block title %}Shared file{% endblock %}
+{% block back %}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>{{ item.file_name }}</h1><p>Shared with you via Digital Archive</p></div><a class="btn" href="{{ file_url }}?download=1">{{ ui.icon('download') }}Download</a></div>
+<div class="viewer">{% if item.media_type=='photo' %}<img src="{{ file_url }}" alt="">{% elif item.media_type=='video' %}<video src="{{ file_url }}" controls></video>{% elif item.mime_type=='application/pdf' %}<iframe src="{{ file_url }}"></iframe>{% else %}<div class="empty" style="color:#fff">{{ ui.icon('file') }}<p>Download to view.</p></div>{% endif %}</div>
+{% endblock %}

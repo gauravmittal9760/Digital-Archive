@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}Home{% endblock %}
+{% block back %}{% endblock %}
+{% block content %}
+<section class="hero">
+  <span class="chip ai" style="background:rgba(255,255,255,.18);color:#fff">{{ ui.icon('sparkles') }} AI is sorting your archive</span>
+  <h1 style="margin-top:.7rem">Hello, {{ current_user.display_name or current_user.username }}</h1>
+  <p>{% if counts.total %}{{ counts.total }} memories safely stored.{% else %}Your archive is empty — upload your first photos, videos or documents.{% endif %} Just ask in plain words to find anything.</p>
+  <form action="{{ url_for('intelligence.search') }}" class="search-box" style="max-width:560px;margin-bottom:1rem"><span style="display:contents">{{ ui.icon('search') }}</span><input name="q" placeholder="Try “meri 10th ki marksheet” or “diwali photos”" style="background:rgba(255,255,255,.95);color:#0D1233;border:0" aria-label="Smart search"></form>
+  <div class="row"><a class="btn" href="{{ url_for('media.upload') }}">{{ ui.icon('upload') }}Upload files</a><a class="btn ghost" href="{{ url_for('media.gallery') }}">{{ ui.icon('grid') }}Browse library</a></div>
+</section>
+
+<div class="grid g4 mt">
+  <div class="card stat"><b data-count="{{ counts.total }}">0</b><span>Total files</span></div>
+  <div class="card stat"><b data-count="{{ counts.photos }}">0</b><span>Photos</span></div>
+  <div class="card stat"><b data-count="{{ counts.videos }}">0</b><span>Videos</span></div>
+  <div class="card stat"><b data-count="{{ counts.documents }}">0</b><span>Documents</span></div>
+</div>
+
+<div class="grid g2 mt">
+  <div class="card">
+    <div class="row between"><h2>Storage</h2><a class="small" href="{{ url_for('intelligence.storage') }}">Details</a></div>
+    <div class="row mt" style="gap:1.4rem">
+      <div class="donut" style="--p:{{ overview.percent }}"><b>{{ overview.percent|round|int }}%</b></div>
+      <div class="grow"><div style="font:700 1.5rem var(--display)">{{ overview.used_h }}</div><div class="muted small">of {{ overview.quota_h }} used</div>
+        <div class="meter {{ 'crit' if overview.percent>90 else 'warn' if overview.percent>70 }} mt"><i data-w="{{ overview.percent }}"></i></div>
+        {% if overview.saved %}<div class="small mt" style="color:var(--ok)">{{ ui.icon('sparkles') }} Compression saved {{ human_size(overview.saved) }}</div>{% endif %}</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="row between"><h2>Auto-sorted by AI</h2><a class="small" href="{{ url_for('media.categories') }}">All categories</a></div>
+    {% if top_categories %}
+    <div class="catbar mt">{% for c in top_categories %}<i style="--c:{{ c.color }};--w:{{ (c.count*100/ (counts.total or 1))|round(1) }}%"></i>{% endfor %}</div>
+    <div class="stack mt">{% for c in top_categories %}<a class="row between" style="color:var(--ink)" href="{{ url_for('media.gallery', category=c.id) }}"><span><i class="dot" style="--c:{{ c.color }}"></i> {{ c.label }}</span><b>{{ c.count }}</b></a>{% endfor %}</div>
+    {% else %}<p class="muted mt">Categories appear here after your first upload.</p>{% endif %}
+  </div>
+</div>
+
+<div class="sec-title"><h2>Explore</h2></div>
+<div class="bento">
+  {% for h in hubs %}
+  <a class="tile tone-{{ h.tone }}" href="{{ url_for('main.hub', slug=h.slug) }}">
+    <span class="ico">{{ ui.icon(h.icon) }}</span><h3>{{ h.title }}</h3><p>{{ h.blurb }}</p>
+    <span class="go">{{ h.count }} option{{ 's' if h.count!=1 }} {{ ui.icon('chevron-right') }}</span>
+  </a>{% endfor %}
+</div>
+
+{% if recent %}
+<div class="sec-title"><h2>Recently added</h2><a class="small" href="{{ url_for('media.gallery') }}">View all</a></div>
+<div class="media-grid">{% for m in recent %}{{ ui.media_card(m) }}{% endfor %}</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}<script>DA.statusUrl="{{ url_for('media.api_status') }}"</script>{% endblock %}

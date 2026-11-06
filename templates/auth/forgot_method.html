@@ -1,0 +1,11 @@
+{% extends 'auth/_layout.html' %}
+{% block title %}Choose recovery method{% endblock %}
+{% block auth_back %}{{ ui.back(url_for('auth.forgot_password')) }}{% endblock %}
+{% block auth_body %}
+<h1>Verify it’s you</h1><p>Recovering <b>@{{ username }}</b>. Pick a method.</p>
+<div class="stack">
+  {% if has_question %}<a class="method" href="{{ url_for('auth.forgot_question') }}"><span class="ico">{{ ui.icon('shield') }}</span><div><b>Answer security question</b><span>Instant, no e-mail needed.</span></div></a>{% endif %}
+  <a class="method" href="{{ url_for('auth.forgot_otp') }}"><span class="ico">{{ ui.icon('mail') }}</span><div><b>E-mail me a code</b><span>6-digit code to {{ masked }}.</span></div></a>
+</div>
+{% if not has_question %}<p class="hint mt">This account has no security question yet — use the e-mail code.</p>{% endif %}
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends 'auth/_layout.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block auth_body %}
+<h1>{{ title }}</h1><p>{{ subtitle }}</p>
+<div class="card">
+{% if send_first %}
+  <form method="post">{{ ui.csrf() }}<input type="hidden" name="action" value="send">
+    <button class="btn block" type="submit">{{ ui.icon('mail') }}Send code</button></form>
+{% else %}
+  <form method="post">{{ ui.csrf() }}
+    <label class="field"><span>6-digit code</span><input class="otp-input" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="••••••" required autofocus></label>
+    <button class="btn block" type="submit">{{ ui.icon('check') }}Verify</button>
+  </form>
+  <form method="post" class="center mt">{{ ui.csrf() }}<input type="hidden" name="action" value="resend">
+    <button class="btn ghost sm" type="submit" data-resend {{ 'disabled' if wait }}>{{ ui.icon('refresh') }}Resend code</button>
+    <div class="hint" data-countdown="{{ wait or 0 }}" data-target="[data-resend]"></div>
+  </form>
+  <p class="hint center">Codes are valid for 10 minutes and sent from “Digital Archive”.</p>
+{% endif %}
+</div>
+{% endblock %}

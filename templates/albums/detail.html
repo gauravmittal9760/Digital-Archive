@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}{{ album.name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>{{ album.name }}</h1><p>{{ album.description or '' }}</p></div>
+  <div class="row"><a class="btn sm" href="{{ url_for('albums.add', album_id=album.id) }}">{{ ui.icon('plus') }}Add</a><a class="btn ghost sm" href="{{ url_for('albums.edit', album_id=album.id) }}">{{ ui.icon('edit') }}Edit</a>
+  <form method="post" action="{{ url_for('albums.delete', album_id=album.id) }}" data-confirm="Delete this album? Files stay safe.">{{ ui.csrf() }}<button class="btn danger ghost sm">{{ ui.icon('trash') }}</button></form></div></div>
+{% if items %}<div class="media-grid">{% for m in items %}<div>{{ ui.media_card(m) }}
+  <div class="row" style="margin-top:.35rem;gap:.3rem"><form method="post" action="{{ url_for('albums.cover', album_id=album.id) }}">{{ ui.csrf() }}<input type="hidden" name="media_id" value="{{ m.id }}"><button class="btn ghost sm">Cover</button></form>
+  <form method="post" action="{{ url_for('albums.remove', album_id=album.id) }}">{{ ui.csrf() }}<input type="hidden" name="media_id" value="{{ m.id }}"><button class="btn ghost sm">Remove</button></form></div></div>{% endfor %}</div>
+{% else %}<div class="empty">{{ ui.icon('image') }}<h3>Empty album</h3><a class="btn mt" href="{{ url_for('albums.add', album_id=album.id) }}">Add memories</a></div>{% endif %}
+{% endblock %}

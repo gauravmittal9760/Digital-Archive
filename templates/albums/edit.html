@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}Edit album{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Edit album</h1></div></div>
+<form method="post" class="card form-narrow">{{ ui.csrf() }}
+  <label class="field"><span>Name</span><input name="name" value="{{ album.name }}" required maxlength="100"></label>
+  <label class="field"><span>Description</span><textarea name="description" maxlength="500">{{ album.description or '' }}</textarea></label>
+  <button class="btn">{{ ui.icon('check') }}Save</button></form>
+{% endblock %}

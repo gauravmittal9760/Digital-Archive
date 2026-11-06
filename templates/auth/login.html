@@ -1,0 +1,13 @@
+{% extends 'auth/_layout.html' %}
+{% block title %}Sign in{% endblock %}
+{% block auth_body %}
+<h1>Welcome back</h1>
+<p>Sign in with your username and password.</p>
+<form method="post" class="card" autocomplete="on">
+  {{ ui.csrf() }}
+  <label class="field"><span>Username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus></label>
+  {{ ui.pw('password','Password') }}
+  <button class="btn block" type="submit">{{ ui.icon('lock') }}Sign in</button>
+  <div class="auth-links"><a href="{{ url_for('auth.forgot') }}">Forgot username or password?</a><a href="{{ url_for('auth.signup') }}">Create account</a></div>
+</form>
+{% endblock %}

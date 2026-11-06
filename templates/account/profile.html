@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Profile{% endblock %}
+{% block content %}
+<div class="card" style="text-align:center;max-width:640px">
+  {% if avatar %}<img class="avatar lg" src="{{ avatar }}" alt="" style="margin:auto">{% else %}<span class="avatar lg" style="margin:auto">{{ (current_user.display_name or current_user.username)[:1]|upper }}</span>{% endif %}
+  <h1 style="margin-top:.8rem">{{ current_user.display_name or current_user.username }}</h1><p class="muted">@{{ current_user.username }}</p>
+  {% if current_user.bio %}<p class="mt">{{ current_user.bio }}</p>{% endif %}
+  <a class="btn ghost sm mt" href="{{ url_for('account.edit_profile') }}">{{ ui.icon('edit') }}Edit profile</a>
+</div>
+<div class="grid g4 mt" style="max-width:900px"><div class="card stat"><b>{{ counts.total }}</b><span>Files</span></div><div class="card stat"><b>{{ album_count }}</b><span>Albums</span></div><div class="card stat"><b>{{ counts.favorites }}</b><span>Favorites</span></div><div class="card stat"><b>{{ counts.trash }}</b><span>In trash</span></div></div>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+{% block title %}Timeline{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Timeline</h1><p>Your memories by month.</p></div></div>
+{% for month, rows in groups.items() %}<div class="sec-title"><h2>{{ month }}</h2><span class="muted small">{{ rows|length }}</span></div><div class="media-grid">{% for m in rows %}{{ ui.media_card(m) }}{% endfor %}</div>{% else %}
+<div class="empty">{{ ui.icon('clock') }}<h3>No memories yet</h3></div>{% endfor %}
+{% endblock %}

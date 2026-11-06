@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Security{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Security</h1><p>Password, e-mail, recovery and two-step verification.</p></div></div>
+<div class="grid g2">
+<div class="card"><div class="setting-row" style="padding-top:0"><div class="grow"><b>Two-step verification</b><span>A code is e-mailed at every sign-in.</span></div><span class="chip {{ 'ok' if current_user.two_step_enabled else 'mute' }}">{{ 'On' if current_user.two_step_enabled else 'Off' }}</span></div>
+  {% if current_user.two_step_enabled %}<form method="post" action="{{ url_for('account.two_step') }}">{{ ui.csrf() }}<input type="hidden" name="action" value="disable">{{ ui.pw('current_password','Current password') }}<button class="btn danger ghost sm">Turn off</button></form>
+  {% else %}<form method="post" action="{{ url_for('account.two_step') }}">{{ ui.csrf() }}<input type="hidden" name="action" value="enable"><button class="btn sm">{{ ui.icon('shield') }}Turn on</button></form>{% endif %}</div>
+<form method="post" action="{{ url_for('account.change_password') }}" class="card">{{ ui.csrf() }}<h3 class="mb">Change password</h3>{{ ui.pw('current_password','Current password') }}{{ ui.pw('new_password','New password','','new-password') }}{{ ui.pw('confirm_password','Confirm new password','','new-password') }}<button class="btn sm">{{ ui.icon('key') }}Update</button></form>
+<form method="post" action="{{ url_for('account.change_email') }}" class="card">{{ ui.csrf() }}<h3 class="mb">Change e-mail</h3><p class="small muted mb">Now: {{ current_user.email }}. We’ll verify the new address with a code.</p><label class="field"><span>New e-mail</span><input type="email" name="new_email" required></label>{{ ui.pw('current_password','Current password') }}<button class="btn sm">{{ ui.icon('mail') }}Send code</button></form>
+<form method="post" action="{{ url_for('account.change_question') }}" class="card">{{ ui.csrf() }}<h3 class="mb">Security question</h3><p class="small muted mb">{{ current_user.security_question or 'Not set yet — add one so you can recover your password.' }}</p>
+  <label class="field"><span>Question</span><select name="question" id="q">{% for q in questions %}<option value="{{ q }}">{{ q }}</option>{% endfor %}<option value="__custom__">Write my own…</option></select></label>
+  <label class="field hide" id="cw"><span>Your question</span><input name="custom_question" maxlength="200"></label><label class="field"><span>Answer</span><input name="answer" autocomplete="off" required></label>
+  {{ ui.pw('current_password','Current password') }}<button class="btn sm">{{ ui.icon('check') }}Save</button></form>
+</div>
+<script>(function(){var s=document.getElementById('q'),w=document.getElementById('cw');s.addEventListener('change',function(){w.classList.toggle('hide',s.value!=='__custom__')})})();</script>
+{% endblock %}

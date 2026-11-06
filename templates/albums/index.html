@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Albums{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Albums</h1><p>Collections you curate.</p></div></div>
+<form method="post" class="card mb"><div class="row">{{ ui.csrf() }}<input name="name" placeholder="New album name" required maxlength="100" style="flex:1;min-width:180px"><input name="description" placeholder="Description (optional)" maxlength="500" style="flex:2;min-width:180px"><button class="btn">{{ ui.icon('plus') }}Create</button></div></form>
+{% if albums %}<div class="bento">{% for a in albums %}<a class="tile" href="{{ url_for('albums.detail', album_id=a.id) }}">
+  {% if a.cover_url %}<div style="height:130px;border-radius:12px;overflow:hidden;margin:-.4rem -.4rem .2rem"><img src="{{ a.cover_url }}" alt="" style="width:100%;height:100%;object-fit:cover" loading="lazy"></div>{% else %}<span class="ico">{{ ui.icon('folder') }}</span>{% endif %}
+  <h3>{{ a.name }}</h3><p>{{ a.description or '' }}</p><span class="go">{{ a.count or 0 }} item{{ 's' if (a.count or 0)!=1 }}{{ ui.icon('chevron-right') }}</span></a>{% endfor %}</div>
+{% else %}<div class="empty">{{ ui.icon('folder') }}<h3>No albums yet</h3></div>{% endif %}
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends 'auth/_layout.html' %}
+{% block title %}Security question{% endblock %}
+{% block auth_back %}{{ ui.back(url_for('auth.forgot_method')) }}{% endblock %}
+{% block auth_body %}
+<h1>Security question</h1><p>Answer to continue.</p>
+<form method="post" class="card">{{ ui.csrf() }}
+  <div class="chip ai mb" style="font-size:.9rem;padding:.5rem .8rem">{{ ui.icon('key') }} {{ question }}</div>
+  <label class="field"><span>Your answer</span><input name="answer" autocomplete="off" required autofocus></label>
+  <button class="btn block" type="submit">{{ ui.icon('check') }}Verify</button>
+</form>
+{% endblock %}

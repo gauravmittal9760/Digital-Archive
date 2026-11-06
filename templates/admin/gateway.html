@@ -1,0 +1,9 @@
+{% extends 'base_admin.html' %}
+{% block title %}Gateway{% endblock %}
+{% block body %}<div class="gate"><div class="box">
+  <div class="vault">{{ ui.icon('shield') }}</div><h1>Admin gateway</h1><p class="sub">Identity confirmed. Choose how to continue.</p>
+  <div class="stack">
+    <a class="opt" href="{{ url_for('admin.login') }}"><span class="i">{{ ui.icon('unlock') }}</span><div><b>Login to Admin Panel</b><span>Enter the admin password</span></div></a>
+    <form method="post" action="{{ url_for('admin.exit') }}">{{ ui.csrf() }}<button class="opt" type="submit"><span class="i">{{ ui.icon('arrow-left') }}</span><div><b>Back to login page</b><span>Leave the gateway</span></div></button></form>
+    <a class="opt" href="{{ url_for('admin.forgot') }}"><span class="i">{{ ui.icon('key') }}</span><div><b>Forgot password</b><span>Recover with your security question</span></div></a>
+  </div></div></div>{% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'base_admin.html' %}
+{% block title %}Admin profile{% endblock %}
+{% block heading %}<h1>My profile</h1><p>Pictures rotate automatically in the header.</p>{% endblock %}
+{% block content %}
+<div class="grid g2">
+<div class="card"><h2>Profile pictures</h2><div class="row mt" style="gap:1.4rem;align-items:flex-start"><div class="avatar-rot lg" data-rotate>{% for a in avatars %}<img src="{{ a.url }}" alt="">{% endfor %}<span class="ph">A</span></div>
+<div class="grow"><div class="row">{% for a in avatars %}<form method="post" action="{{ url_for('admin.avatar_delete', avatar_id=a.id) }}" style="position:relative">{{ ui.csrf() }}<img src="{{ a.url }}" alt="" style="width:52px;height:52px;border-radius:50%;object-fit:cover"><button class="btn danger sm" style="position:absolute;right:-6px;top:-6px;padding:0;width:20px;height:20px;border-radius:50%" aria-label="Delete">×</button></form>{% endfor %}</div></div></div>
+<form method="post" action="{{ url_for('admin.avatar_upload') }}" enctype="multipart/form-data" class="mt">{{ ui.csrf() }}<input type="file" name="avatar" accept="image/*" required><button class="btn sm mt">{{ ui.icon('upload') }}Add picture</button></form></div>
+<div class="card"><h2>Admin e-mail</h2><p class="muted small mt">Currently {{ admin_email or 'not set' }}. Used for recovery codes.</p>
+<form method="post" action="{{ url_for('admin.change_email') }}" class="mt">{{ ui.csrf() }}<label class="field"><span>New e-mail</span><input type="email" name="email" required></label><label class="field"><span>Admin password</span><input type="password" name="password" required></label><button class="btn sm">Update e-mail</button></form></div>
+<div class="card"><h2>Change password</h2>
+<form method="post" action="{{ url_for('admin.change_password') }}" class="mt">{{ ui.csrf() }}<label class="field"><span>Which password</span><select name="which"><option value="panel">Admin panel password</option><option value="gate">Gateway password (login page)</option></select></label>
+<label class="field"><span>Current admin panel password</span><input type="password" name="password" required></label><label class="field"><span>New password</span><input type="password" name="new_password" required></label><label class="field"><span>Confirm</span><input type="password" name="confirm_password" required></label><button class="btn sm">Update</button></form></div>
+<div class="card"><h2>Recent admin access</h2><ul class="timeline mt">{% for r in records %}<li><b>{{ r.stage|title }}</b> <span class="chip {{ 'ok' if r.success else 'err' }}">{{ 'ok' if r.success else 'failed' }}</span><div class="small muted">{{ r.details }} · {{ r.created_at|dt }}</div></li>{% endfor %}</ul></div>
+</div>
+{% endblock %}

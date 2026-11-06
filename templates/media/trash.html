@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Trash{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Trash</h1><p>Items are deleted permanently {{ days }} days after they land here — automatically, even if you never sign in.</p></div>
+  {% if items %}<form method="post" action="{{ url_for('media.empty_trash') }}" data-confirm="Delete everything in trash forever?">{{ ui.csrf() }}<button class="btn danger ghost sm">{{ ui.icon('trash') }}Empty trash</button></form>{% endif %}</div>
+{% if items %}<div class="media-grid">{% for m in items %}
+  <article class="m-card"><div class="m-thumb">{% if m.thumb_url %}<img src="{{ m.thumb_url }}" alt="" loading="lazy">{% else %}<span class="ph">{{ ui.icon('file') }}</span>{% endif %}</div>
+    <span class="m-badge">{{ m.days_left }} day{{ 's' if m.days_left!=1 }} left</span>
+    <div class="m-meta"><b>{{ m.file_name }}</b><div class="row" style="margin-top:.4rem;gap:.4rem">
+      <form method="post" action="{{ url_for('media.restore', media_id=m.id) }}">{{ ui.csrf() }}<button class="btn soft sm">{{ ui.icon('refresh') }}Restore</button></form>
+      <form method="post" action="{{ url_for('media.purge_one', media_id=m.id) }}" data-confirm="Delete forever?">{{ ui.csrf() }}<button class="btn danger ghost sm" aria-label="Delete forever">{{ ui.icon('trash') }}</button></form></div></div></article>
+{% endfor %}</div>
+{% else %}<div class="empty">{{ ui.icon('trash') }}<h3>Trash is empty</h3></div>{% endif %}
+{% endblock %}

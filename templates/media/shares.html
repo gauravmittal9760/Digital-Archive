@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Share links{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Share links</h1><p>Read-only, expiring and revocable.</p></div></div>
+{% if new_link %}<div class="card mb" style="border-color:var(--ok)"><b>New link</b><div class="row mt"><input id="newLink" value="{{ new_link }}" readonly><button class="btn sm" onclick="navigator.clipboard.writeText(document.getElementById('newLink').value);this.textContent='Copied'">{{ ui.icon('copy') }}Copy</button></div><p class="hint">Shown only once.</p></div>{% endif %}
+{% if links %}<div class="table-wrap"><table><thead><tr><th>File</th><th>Status</th><th>Expires</th><th></th></tr></thead><tbody>
+{% for l in links %}<tr><td>{{ l.file_name }}</td><td><span class="chip {{ 'ok' if l.status=='active' else 'mute' }}">{{ l.status }}</span></td><td>{{ l.expires_at|dt }}</td>
+<td>{% if l.status=='active' %}<form method="post" action="{{ url_for('media.revoke_share', share_id=l.id) }}">{{ ui.csrf() }}<button class="btn danger ghost sm">Revoke</button></form>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<div class="empty">{{ ui.icon('link') }}<h3>No share links</h3><p>Open a file and choose “Share link”.</p></div>{% endif %}
+{% endblock %}

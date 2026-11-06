@@ -1,0 +1,9 @@
+{% extends 'base_admin.html' %}
+{% block title %}Announcements{% endblock %}
+{% block heading %}<h1>Announcements</h1><p>Show a banner to every signed-in user.</p>{% endblock %}
+{% block content %}
+<form method="post" class="card" style="max-width:640px">{{ ui.csrf() }}<label class="field"><span>Message</span><textarea name="message" maxlength="300" required></textarea></label>
+<label class="field"><span>Level</span><select name="level"><option value="info">Info</option><option value="warning">Warning</option><option value="critical">Critical</option></select></label>
+<div class="row"><button class="btn">{{ ui.icon('megaphone') }}Publish</button><button class="btn ghost" name="action" value="clear" formnovalidate>Remove banner</button></div></form>
+<div class="table-wrap mt"><table><thead><tr><th>When</th><th>Level</th><th>Message</th><th>Active</th></tr></thead><tbody>{% for r in rows %}<tr><td>{{ r.created_at|dt }}</td><td>{{ r.level }}</td><td class="wrap">{{ r.message }}</td><td>{{ 'Yes' if r.is_active else 'No' }}</td></tr>{% else %}<tr><td colspan="4" class="muted">None yet.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

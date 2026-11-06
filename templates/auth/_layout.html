@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block shell %}
+<main class="auth-wrap">
+  <aside class="auth-art">
+    <span class="orb o1"></span><span class="orb o2"></span>
+    <div style="position:relative">
+      <span class="chip ai" style="background:rgba(255,255,255,.18);color:#fff">{{ ui.icon('sparkles') }} AI-organised</span>
+      <h1 style="margin-top:.8rem">Every memory,<br>found in a second.</h1>
+      <p>Upload anything. Digital Archive reads it, sorts it and lets you search in plain words — even “meri 10th ki marksheet”.</p>
+      <ul>
+        <li>{{ ui.icon('tag') }}Auto-categorised by AI</li>
+        <li>{{ ui.icon('shield') }}Private &amp; two-step protected</li>
+        <li>{{ ui.icon('database') }}Smart compression saves space</li>
+      </ul>
+    </div>
+  </aside>
+  <section class="auth-card">
+    {% block auth_back %}{% if back_url is defined and back_url %}{{ ui.back(back_url) }}{% endif %}{% endblock %}
+    {% block auth_body %}{% endblock %}
+  </section>
+</main>
+{% endblock %}

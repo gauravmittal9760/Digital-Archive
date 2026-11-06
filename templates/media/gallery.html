@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>{{ title }}</h1><p>{{ total }} item{{ 's' if total!=1 }}</p></div>
+  <a class="btn" href="{{ url_for('media.upload') }}">{{ ui.icon('upload') }}Upload</a></div>
+<form class="row mb" method="get">
+  {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}{% if fav %}<input type="hidden" name="fav" value="1">{% endif %}
+  <div class="search-box grow" style="min-width:200px">{{ ui.icon('search') }}<input name="q" value="{{ q }}" placeholder="Filter by name, note or tag"></div>
+  <select name="sort" style="width:auto" onchange="this.form.submit()">{% for k,l in [('newest','Newest'),('oldest','Oldest'),('name','Name'),('size','Largest')] %}<option value="{{ k }}" {{ 'selected' if sort==k }}>{{ l }}</option>{% endfor %}</select>
+  <input type="hidden" name="type" value="{{ kind }}">
+</form>
+<div class="filters">
+  {% for k,l in [('all','All'),('photo','Photos'),('video','Videos'),('document','Documents')] %}<a class="pill {{ 'on' if kind==k }}" href="{{ url_for('media.gallery', type=k, category=category or None, fav=1 if fav else None, q=q or None, sort=sort) }}">{{ l }}</a>{% endfor %}
+  <a class="pill" href="{{ url_for('media.categories') }}">{{ ui.icon('tag') }}Categories</a>
+</div>
+{% if items %}
+<div class="media-grid" data-selectable>{% for m in items %}{{ ui.media_card(m, True) }}{% endfor %}</div>
+{% if pages>1 %}<div class="pager">
+  {% if page>1 %}<a class="btn ghost sm" href="{{ url_for('media.gallery', page=page-1, type=kind, category=category or None, q=q or None, sort=sort, fav=1 if fav else None) }}">{{ ui.icon('arrow-left') }}Prev</a>{% endif %}
+  <span class="muted small">Page {{ page }} of {{ pages }}</span>
+  {% if page<pages %}<a class="btn ghost sm" href="{{ url_for('media.gallery', page=page+1, type=kind, category=category or None, q=q or None, sort=sort, fav=1 if fav else None) }}">Next{{ ui.icon('chevron-right') }}</a>{% endif %}
+</div>{% endif %}
+<form method="post" action="{{ url_for('media.bulk') }}" id="bulkForm">{{ ui.csrf() }}<input type="hidden" name="action" value=""></form>
+<div class="bulkbar" id="bulkbar"><b id="bulkCount">0 selected</b>
+  <button class="btn ghost sm" id="bulkAll" type="button">All</button>
+  <button class="btn sm" data-bulk="favorite" type="button">{{ ui.icon('heart') }}Favorite</button>
+  <select class="sm" id="bulkCat" style="width:auto;padding:.45rem" aria-label="Move to category"><option value="">Set category…</option>{% for c in CATEGORIES %}<option value="cat:{{ c[0] }}">{{ c[1] }}</option>{% endfor %}</select>
+  <button class="btn danger sm" data-bulk="trash" data-confirm="Move selected files to trash?" type="button">{{ ui.icon('trash') }}Trash</button>
+  <button class="btn ghost sm" id="bulkClear" type="button">{{ ui.icon('x') }}</button></div>
+<script>document.getElementById('bulkCat').addEventListener('change',function(){if(!this.value)return;var f=document.getElementById('bulkForm'),ids=document.querySelectorAll('.m-pick input:checked');ids.forEach(function(i){var h=document.createElement('input');h.type='hidden';h.name='media_ids';h.value=i.value;f.appendChild(h)});f.elements.action.value=this.value;f.submit()})</script>
+{% else %}
+<div class="empty">{{ ui.icon('image') }}<h3>Nothing here yet</h3><p>Upload files and they will appear, already sorted.</p><a class="btn mt" href="{{ url_for('media.upload') }}">{{ ui.icon('upload') }}Upload files</a></div>
+{% endif %}
+{% endblock %}
+{% block scripts %}<script>DA.statusUrl="{{ url_for('media.api_status') }}"</script>{% endblock %}

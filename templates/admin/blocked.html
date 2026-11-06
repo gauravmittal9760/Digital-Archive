@@ -1,0 +1,10 @@
+{% extends 'base_admin.html' %}
+{% block title %}Blocked users{% endblock %}
+{% block heading %}<h1>Blocked &amp; locked users</h1><p>Admin blocks and temporary 15-minute locks after 5 wrong passwords.</p>{% endblock %}
+{% block content %}
+{% if rows %}<div class="table-wrap"><table><thead><tr><th>User</th><th>E-mail</th><th>Type</th><th>Since / until</th><th>Reason</th><th></th></tr></thead><tbody>
+{% for r in rows %}<tr><td><a href="{{ url_for('admin.user_detail', user_id=r.id) }}"><b>{{ r.username }}</b></a></td><td>{{ r.email }}</td><td><span class="chip {{ 'err' if r.is_blocked else 'warn' }}">{{ r.kind }}</span></td>
+<td>{% if r.is_blocked %}{{ r.blocked_at|dt }}{% else %}until {{ r.locked_until|dt }}{% endif %}</td><td class="wrap">{{ r.blocked_reason or '—' }}</td>
+<td><form method="post" action="{{ url_for('admin.unblock', user_id=r.id) }}">{{ ui.csrf() }}<input type="hidden" name="return" value="{{ url_for('admin.blocked') }}"><button class="btn ok sm">{{ ui.icon('unlock') }}Unblock</button></form></td></tr>{% endfor %}</tbody></table></div>
+{% else %}<div class="card" style="text-align:center;padding:3rem">{{ ui.icon('check') }}<h2 class="mt">Nobody is blocked</h2></div>{% endif %}
+{% endblock %}

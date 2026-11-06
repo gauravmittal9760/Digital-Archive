@@ -1,0 +1,10 @@
+{% extends 'auth/_layout.html' %}
+{% block title %}Forgot username{% endblock %}
+{% block auth_back %}{{ ui.back(url_for('auth.forgot')) }}{% endblock %}
+{% block auth_body %}
+<h1>Find your username</h1><p>Enter the e-mail you signed up with.</p>
+<form method="post" class="card">{{ ui.csrf() }}
+  <label class="field"><span>E-mail</span><input type="email" name="email" autocomplete="email" required autofocus></label>
+  <button class="btn block" type="submit">{{ ui.icon('mail') }}Send code</button>
+</form>
+{% endblock %}

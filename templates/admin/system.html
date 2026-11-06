@@ -1,0 +1,7 @@
+{% extends 'base_admin.html' %}
+{% block title %}System{% endblock %}
+{% block heading %}<h1>System health</h1>{% endblock %}
+{% block content %}
+<div class="grid g3">{% for name,val,ok in checks %}<div class="card"><div class="row between"><b>{{ name }}</b><span class="chip {{ 'ok' if ok else 'warn' }}">{{ 'OK' if ok else 'Check' }}</span></div><p class="muted mt">{{ val }}</p></div>{% endfor %}</div>
+{% if last_purge %}<p class="muted mt">Last trash purge: {{ last_purge }}</p>{% endif %}
+{% endblock %}

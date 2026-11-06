@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Duplicates{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Duplicate finder</h1><p>{% if groups %}{{ groups|length }} group{{ 's' if groups|length!=1 }} · {{ human_size(reclaim) }} can be freed.{% else %}No duplicates found.{% endif %}</p></div></div>
+{% if groups %}<form method="post" action="{{ url_for('intelligence.clean_duplicates') }}">{{ ui.csrf() }}
+{% for grp in groups %}<div class="card mb"><div class="row between"><h3>{{ 'Exact copies' if grp.kind=='exact' else 'Look-alikes' }}</h3><span class="chip {{ 'err' if grp.kind=='exact' else 'ai' }}">{{ human_size(grp.reclaimable) }}</span></div>
+<div class="media-grid mt">{% for m in grp['items'] %}<label style="position:relative;display:block">{% if not loop.first %}<input type="checkbox" name="media_ids" value="{{ m.id }}" checked style="position:absolute;z-index:3;left:.6rem;top:.6rem;width:20px;height:20px">{% endif %}{{ ui.media_card(m) }}{% if loop.first %}<span class="chip ok" style="margin-top:.3rem">keep</span>{% endif %}</label>{% endfor %}</div></div>{% endfor %}
+<button class="btn danger">{{ ui.icon('trash') }}Move selected copies to trash</button></form>
+{% else %}<div class="empty">{{ ui.icon('check') }}<h3>All unique</h3></div>{% endif %}
+{% endblock %}

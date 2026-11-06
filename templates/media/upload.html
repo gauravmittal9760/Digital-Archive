@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Upload{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Upload</h1><p>Select as many photos, videos and documents as you like. AI sorts and compresses them automatically.</p></div>
+  <span class="chip ai">{{ ui.icon('cpu') }} {{ ai_mode }}</span></div>
+<div class="drop" id="dropzone" data-url="{{ url_for('media.api_upload') }}" data-gallery="{{ url_for('media.gallery') }}" tabindex="0">
+  {{ ui.icon('upload') }}<h3>Drop files here or click to choose</h3>
+  <p class="muted small">Images, videos, PDFs & documents · multiple at once</p>
+  <input type="file" id="fileInput" multiple hidden accept="image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt">
+</div>
+<div class="queue" id="queue"></div>
+<div class="row mt"><button class="btn" id="startUpload" disabled>{{ ui.icon('upload') }}Upload &amp; organise</button><button class="btn ghost hide" id="clearQueue">Clear</button><span id="uploadSummary"></span></div>
+<div class="card mt2">
+  <div class="row between"><b>Your space</b><span class="muted small">{{ overview.used_h }} of {{ overview.quota_h }}</span></div>
+  <div class="meter mt {{ 'crit' if overview.percent>90 else 'warn' if overview.percent>70 }}"><i data-w="{{ overview.percent }}"></i></div>
+</div>
+<noscript><form method="post" enctype="multipart/form-data" class="card mt">{{ ui.csrf() }}<input type="file" name="media" multiple required><button class="btn mt">Upload</button></form></noscript>
+{% endblock %}
