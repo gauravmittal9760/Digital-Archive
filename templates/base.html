@@ -21,7 +21,7 @@
   {% if current_user %}
   <nav class="nav">
     <a href="{{ url_for('main.dashboard') }}" class="{{ 'on' if request.endpoint=='main.dashboard' }}">{{ ui.icon('home') }}Home</a>
-    <a href="{{ url_for('media.gallery') }}" class="{{ 'on' if request.endpoint=='media.gallery' }}">{{ ui.icon('grid') }}Library</a>
+    <a href="{{ url_for('media.gallery') }}" class="{{ 'on' if request.endpoint=='media.gallery' }}">{{ ui.icon('grid') }}Gallery</a>
     <a href="{{ url_for('intelligence.search') }}" class="{{ 'on' if request.endpoint=='intelligence.search' }}">{{ ui.icon('search') }}Search</a>
     <a href="{{ url_for('media.upload') }}" class="{{ 'on' if request.endpoint=='media.upload' }}">{{ ui.icon('upload') }}Upload</a>
   </nav>
