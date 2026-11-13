@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Expiry tracker{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Expiry tracker</h1><p>Dates found in your documents. Open a file to set or fix its date.</p></div></div>
+{% macro rows(list) %}<div class="table-wrap"><table><thead><tr><th>File</th><th>Type</th><th>Date</th><th>Status</th></tr></thead><tbody>
+{% for m in list %}<tr><td><a href="{{ url_for('media.detail', media_id=m.id) }}">{{ m.file_name }}</a></td><td>{{ m.doc_title or '—' }}</td><td>{{ m.expiry_date.strftime('%d %b %Y') }}</td>
+<td><span class="chip {{ 'danger' if m.days_left < 0 else ('warn' if m.days_left <= 30 else 'ok') }}">{% if m.days_left < 0 %}expired {{ -m.days_left }}d ago{% elif m.days_left == 0 %}today{% else %}in {{ m.days_left }} days{% endif %}</span></td></tr>{% endfor %}</tbody></table></div>{% endmacro %}
+{% if expired %}<h3 class="mb">Expired</h3>{{ rows(expired) }}{% endif %}
+{% if soon %}<h3 class="mb mt">Upcoming (next 12 months)</h3>{{ rows(soon) }}{% endif %}
+{% if not expired and not soon %}<div class="empty">{{ ui.icon('clock') }}<h3>Nothing to track</h3><p>Upload a passport, insurance or warranty and its expiry date is detected automatically. You can also add a date on any file.</p></div>{% endif %}
+{% endblock %}

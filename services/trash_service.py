@@ -94,6 +94,15 @@ def start_background_purger(interval_seconds: int = 3600) -> None:
                 purge_expired()
             except Exception:
                 log.exception("Background purge failed")
+            try:
+                from services import ai_service, reminder_service
+                ai_service.resume_pending()
+                reminder_service.run_reminders()
+                from services import storage_service, vault_service
+                storage_service.process_cleanup()
+                vault_service.purge_sessions()
+            except Exception:
+                log.exception("Background maintenance failed")
             time.sleep(interval_seconds)
 
     threading.Thread(target=loop, name="trash-purger", daemon=True).start()

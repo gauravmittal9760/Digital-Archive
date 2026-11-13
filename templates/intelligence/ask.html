@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Ask your archive{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Ask your archive</h1><p>e.g. “insurance policy number”, “marksheet percentage”. Runs fully on this server.</p></div></div>
+<form method="get" class="row mb"><input name="q" value="{{ q }}" placeholder="Ask a question…" autofocus style="flex:1"><button class="btn">{{ ui.icon('search') }}Ask</button></form>
+{% for a in answers %}<div class="card mb"><b><a href="{{ url_for('media.detail', media_id=a.item.id) }}">{{ a.item.file_name }}</a></b> <span class="chip mute">{{ a.item.category_label }}</span>
+{% for s in a.snippets %}<p class="small mt">“{{ s }}”</p>{% endfor %}{% if not a.snippets %}<p class="hint">Matched by name, labels or category.</p>{% endif %}</div>
+{% endfor %}
+{% if q and not answers %}<div class="empty">{{ ui.icon('search') }}<h3>No matching documents</h3></div>{% endif %}
+{% endblock %}

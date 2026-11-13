@@ -264,7 +264,8 @@ def privacy():
     if request.method == "POST":
         enabled = request.form.get("ai_enabled") == "1"
         with engine.begin() as conn:
-            conn.execute(update(users).where(users.c.id == g.user["id"]).values(ai_enabled=enabled))
+            conn.execute(update(users).where(users.c.id == g.user["id"]).values(
+                ai_enabled=enabled, reminders_enabled=request.form.get("reminders_enabled") == "1"))
         flash("AI picture analysis is now " + ("on." if enabled else "off. New uploads are sorted with on-server models only."), "success")
         return redirect(url_for("account.privacy"))
     from services import ai_service

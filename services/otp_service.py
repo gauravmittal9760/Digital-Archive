@@ -5,7 +5,7 @@ import hashlib
 import hmac
 from datetime import timedelta
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import insert, select, text, update
 
 from config import (IS_PRODUCTION, OTP_HOURLY_LIMIT, OTP_MAX_VERIFY_ATTEMPTS, OTP_RESEND_SECONDS,
                     OTP_TTL_MINUTES, SECRET_KEY)
@@ -27,11 +27,18 @@ def _code_hash(row_id: str, code: str) -> str:
     return hmac.new(SECRET_KEY.encode(), f"{row_id}:{code}".encode(), hashlib.sha256).hexdigest()
 
 
-def seconds_until_resend(purpose: str, email: str) -> int:
-    with engine.connect() as conn:
-        created = conn.execute(select(otp_codes.c.created_at).where(
-            otp_codes.c.purpose == purpose, otp_codes.c.email == email
-        ).order_by(otp_codes.c.created_at.desc()).limit(1)).scalar()
+def _latest_created(conn, purpose: str, email: str):
+    return conn.execute(select(otp_codes.c.created_at).where(
+        otp_codes.c.purpose == purpose, otp_codes.c.email == email
+    ).order_by(otp_codes.c.created_at.desc()).limit(1)).scalar()
+
+
+def seconds_until_resend(purpose: str, email: str, conn=None) -> int:
+    if conn is None:
+        with engine.connect() as own:
+            created = _latest_created(own, purpose, email)
+    else:
+        created = _latest_created(conn, purpose, email)
     created = aware(created)
     if not created:
         return 0
@@ -58,6 +65,11 @@ def issue_otp(purpose: str, email: str, user_id: str | None = None, ip: str | No
     row_id = new_id()
     now = utcnow()
     with engine.begin() as conn:
+        if conn.dialect.name == "postgresql":      # serialise concurrent requests for the same address + purpose
+            conn.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"), {"k": f"otp:{purpose}:{email}"})
+        wait = seconds_until_resend(purpose, email, conn)          # re-check inside the lock: closes the race
+        if wait:
+            return {"status": "cooldown", "wait": wait}
         conn.execute(update(otp_codes).where(
             otp_codes.c.purpose == purpose, otp_codes.c.email == email, otp_codes.c.used_at.is_(None)
         ).values(used_at=now))

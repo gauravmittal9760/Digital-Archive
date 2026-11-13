@@ -95,3 +95,49 @@ def set_cover(album_id: str, user_id: str, media_id: str) -> None:
             album_media.c.album_id == album_id, album_media.c.media_id == media_id, albums.c.user_id == user_id)).first()
         if ok:
             conn.execute(update(albums).where(albums.c.id == album_id).values(cover_media_id=media_id, updated_at=utcnow()))
+
+
+# ----------------------------------------------------------------- smart suggestions
+def _candidates(user_id: str) -> list[dict]:
+    """Auto-detected album ideas: trips/events (photos on consecutive days) and big categories."""
+    from datetime import timedelta
+    from services import classifier
+    with engine.connect() as conn:
+        rows = conn.execute(select(media.c.id, media.c.category, media.c.captured_at, media.c.created_at, media.c.media_type).where(
+            media.c.user_id == user_id, media.c.is_deleted.is_(False)).order_by(media.c.created_at.desc()).limit(3000)).all()
+        in_album = {r[0] for r in conn.execute(select(album_media.c.media_id).join(albums, albums.c.id == album_media.c.album_id)
+                                               .where(albums.c.user_id == user_id)).all()}
+    out = []
+    dated = sorted(((r[2] or r[3]).date(), r[0]) for r in rows if (r[2] or r[3]) and r[4] in ("photo", "video"))
+    cluster: list = []
+    for day, mid in dated + [(None, None)]:
+        if cluster and (day is None or (day - cluster[-1][0]) > timedelta(days=1)):
+            ids = [m for _, m in cluster]
+            span = (cluster[0][0], cluster[-1][0])
+            if len(ids) >= 6 and (span[1] - span[0]).days <= 14 and sum(i in in_album for i in ids) < 0.7 * len(ids):
+                label = span[0].strftime("%d %b %Y") if span[0] == span[1] else f"{span[0]:%d %b} – {span[1]:%d %b %Y}"
+                out.append({"key": f"trip:{span[0]}:{span[1]}", "name": f"Memories · {label}", "count": len(ids), "kind": "Event / trip",
+                            "ids": ids})
+            cluster = []
+        if day is not None:
+            cluster.append((day, mid))
+    by_cat: dict[str, list] = {}
+    for r in rows:
+        by_cat.setdefault(classifier.normalize_category(r[1]), []).append(r[0])
+    for cat, ids in by_cat.items():
+        if cat != "other" and len(ids) >= 5 and sum(i in in_album for i in ids) < 0.7 * len(ids):
+            out.append({"key": f"cat:{cat}", "name": classifier.CATEGORY_LABEL[cat], "count": len(ids), "kind": "Category", "ids": ids})
+    return sorted(out, key=lambda c: -c["count"])
+
+
+def suggestions(user_id: str, limit: int = 4) -> list[dict]:
+    return [{k: v for k, v in c.items() if k != "ids"} for c in _candidates(user_id)[:limit]]
+
+
+def create_from_suggestion(user_id: str, key: str) -> str | None:
+    for cand in _candidates(user_id):
+        if cand["key"] == key:
+            album_id = create_album(user_id, cand["name"][:100], f"Auto-suggested {cand['kind'].lower()} album")
+            add_media(album_id, user_id, cand["ids"])
+            return album_id
+    return None

@@ -4,6 +4,12 @@
 var $=function(s,r){return (r||document).querySelector(s)},$$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
 var csrf=(window.DA&&DA.csrf)||($('meta[name=csrf-token]')||{}).content||'';
 
+/* installable PWA prompt */
+var installButton=$('#installApp'),installPrompt=null;
+window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();installPrompt=e;if(installButton)installButton.hidden=false});
+if(installButton)installButton.addEventListener('click',function(){if(!installPrompt)return;installPrompt.prompt();installPrompt.userChoice.finally(function(){installPrompt=null;installButton.hidden=true})});
+window.addEventListener('appinstalled',function(){if(installButton)installButton.hidden=true;installPrompt=null});
+
 /* theme: icon-only toggle, saved to the account (or cookie when signed out) */
 var tt=$('#themeToggle');
 if(tt)tt.addEventListener('click',function(){
@@ -115,4 +121,14 @@ if(pend.length&&window.DA&&DA.statusUrl){var tries=0,iv=setInterval(function(){
   fetch(DA.statusUrl+'?ids='+encodeURIComponent(ids),{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(j){
     Object.keys(j).forEach(function(id){var it=j[id];if(it.status!=='pending'){var el=$('[data-ai-pending="'+id+'"]');if(el){var lab=$('.m-badge span',el),d=$('.m-badge .dot',el);if(lab)lab.textContent=it.label;if(d)d.style.setProperty('--c',it.color);el.removeAttribute('data-ai-pending')}}});
     pend=$$('[data-ai-pending]')}).catch(function(){})},4000)}
+})();
+
+/* premium motion helpers: scrolled topbar, cursor spotlight, count-up numbers */
+(function(){
+  var bar=document.querySelector('.topbar');
+  if(bar){var f=function(){bar.classList.toggle('scrolled',window.scrollY>6)};f();window.addEventListener('scroll',f,{passive:true});}
+  document.addEventListener('pointermove',function(e){
+    var c=e.target.closest&&e.target.closest('.tile,.stat,a.card');
+    if(c){var r=c.getBoundingClientRect();c.style.setProperty('--mx',(e.clientX-r.left)+'px');c.style.setProperty('--my',(e.clientY-r.top)+'px');}
+  },{passive:true});
 })();

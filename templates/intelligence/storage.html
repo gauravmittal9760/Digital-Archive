@@ -7,5 +7,6 @@
 {% if o.saved %}<p class="small mt" style="color:var(--ok)">{{ ui.icon('sparkles') }} Compression saved {{ human_size(o.saved) }}</p>{% endif %}</div></div></div>
 <div class="grid g3 mt">{% for k,l in [('photo','Photos'),('video','Videos'),('document','Documents')] %}{% set v = o.by_type.get(k,(0,0)) %}<div class="card stat"><b>{{ human_size(v[0]) }}</b><span>{{ l }} · {{ v[1] }} files</span></div>{% endfor %}
 <div class="card stat"><b>{{ human_size(o.trash_bytes) }}</b><span>In trash</span></div></div>
+{% if tips %}<div class="sec-title"><h2>{{ ui.icon('sparkles') }} Free up space</h2></div><div class="stack mb">{% for t in tips %}<a class="list-row" href="{{ url_for(t.endpoint) }}"><div class="grow"><b>{{ t.title }}</b><br><span class="hint">{{ t.detail }}</span></div><span class="chip ok">{{ t.bytes_h }}</span></a>{% endfor %}</div>{% endif %}
 {% if o.largest %}<div class="sec-title"><h2>Largest files</h2></div><div class="stack">{% for f in o.largest %}<a class="list-row" href="{{ url_for('media.detail', media_id=f.id) }}"><span class="ico">{{ ui.icon('file') }}</span><div class="grow"><b>{{ f.file_name }}</b></div><b>{{ human_size(f.file_size) }}</b></a>{% endfor %}</div>{% endif %}
 {% endblock %}

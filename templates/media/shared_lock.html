@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Protected file{% endblock %}
+{% block back %}{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Protected file</h1><p>Enter the password the owner gave you.</p></div></div>
+<form method="post" action="{{ url_for('media.shared_unlock', token=token) }}" class="card" style="max-width:420px">
+{{ ui.csrf() }}{% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+<label>Password<input type="password" name="password" required autofocus autocomplete="off"></label>
+<button class="btn mt">Open</button></form>
+{% endblock %}

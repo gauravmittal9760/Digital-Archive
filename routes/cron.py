@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 
 import config
 from database import engine, users
-from services import otp_service, security, storage_service, trash_service
+from services import ai_service, otp_service, reminder_service, security, storage_service, trash_service
 
 bp = Blueprint("cron", __name__)
 
@@ -30,4 +30,9 @@ def purge():
         abort(404)
     removed = trash_service.purge_expired(batch=500)
     otp_service.purge_old_otps()
-    return jsonify(purged=removed, remaining=trash_service.pending_purge_count())
+    resumed = ai_service.resume_pending()
+    reminded = reminder_service.run_reminders()
+    from services import storage_service, vault_service
+    cleaned = storage_service.process_cleanup()
+    vault_service.purge_sessions()
+    return jsonify(purged=removed, ai_resumed=resumed, reminders_sent=reminded, cleaned=cleaned, remaining=trash_service.pending_purge_count())

@@ -27,7 +27,7 @@ from datetime import timedelta
 
 from sqlalchemy import select, update
 
-from config import ENABLE_OCR, GEMINI_API_KEY, GEMINI_MODEL
+from config import ENABLE_OCR, GEMINI_API_KEY, GEMINI_MODEL, TESSERACT_CMD
 from database import engine, media, users, utcnow, aware
 from services import classifier, vision_local
 
@@ -42,8 +42,14 @@ def vision_available() -> bool:
     return bool(GEMINI_API_KEY)
 
 
+def tesseract_binary() -> str | None:
+    """Resolve the configured Tesseract executable on Windows or Linux."""
+    configured = (TESSERACT_CMD or "tesseract").strip().strip('"')
+    return shutil.which(configured) or (configured if configured and __import__("os").path.isfile(configured) else None)
+
+
 def ocr_available() -> bool:
-    return bool(ENABLE_OCR and shutil.which("tesseract"))
+    return bool(ENABLE_OCR and tesseract_binary())
 
 
 def local_vision_available() -> bool:
@@ -53,10 +59,12 @@ def local_vision_available() -> bool:
 def ai_mode_label() -> str:
     if vision_available():
         return "Gemini vision + local models"
+    if local_vision_available() and ocr_available():
+        return "Local vision (MobileNet) + English OCR + local models"
     if local_vision_available():
         return "Local vision (MobileNet) + local models"
     if ocr_available():
-        return "Local OCR + local models"
+        return "English OCR + local models"
     return "Local models"
 
 
@@ -144,11 +152,18 @@ def ocr_image(jpeg: bytes) -> str | None:
     if not ocr_available():
         return None
     try:
+        binary = tesseract_binary()
+        if not binary:
+            return None
         if _ocr_langs is None:
-            listing = subprocess.run(["tesseract", "--list-langs"], capture_output=True, text=True, timeout=15).stdout
-            _ocr_langs = "eng+hin" if "hin" in listing.split() else "eng"
-        result = subprocess.run(["tesseract", "stdin", "stdout", "-l", _ocr_langs, "--psm", "3"],
-                                input=jpeg, capture_output=True, timeout=45)
+            listing = subprocess.run([binary, "--list-langs"], capture_output=True, text=True, timeout=15).stdout
+            available = set(listing.split())
+            _ocr_langs = "eng+hin" if {"eng", "hin"}.issubset(available) else ("eng" if "eng" in available else "osd")
+        result = subprocess.run([binary, "stdin", "stdout", "-l", _ocr_langs, "--psm", "3"],
+                                input=jpeg, capture_output=True, timeout=45, check=False)
+        if result.returncode != 0:
+            log.warning("Tesseract exited with code %s: %s", result.returncode, result.stderr.decode("utf-8", "ignore")[:300])
+            return None
         text = result.stdout.decode("utf-8", "ignore").strip()
         return text[:3000] or None
     except Exception as exc:
@@ -220,6 +235,13 @@ def run_analysis(media_id: str, jpeg: bytes | None) -> None:
             values.update(ai_category=category, ai_confidence=confidence)
             if not item["category_locked"]:
                 values["category"] = category
+        if merged_text:
+            from services import doc_intel
+            found = doc_intel.analyze(merged_text, item.get("file_name") or "")
+            if found["doc_type"] and not item.get("doc_type"):
+                values.update(doc_type=found["doc_type"], doc_title=found["doc_title"])
+            if found["expiry_date"] and not item.get("expiry_date"):
+                values.update(expiry_date=found["expiry_date"], expiry_notice=0)
         with engine.begin() as conn:
             conn.execute(update(media).where(media.c.id == media_id).values(**values))
     except Exception:
@@ -264,7 +286,7 @@ def reanalyze(media_id: str) -> bool:
         except Exception as exc:
             log.warning("Could not load %s for re-analysis: %s", media_id, exc)
     with engine.begin() as conn:
-        conn.execute(update(media).where(media.c.id == media_id).values(ai_status="pending"))
+        conn.execute(update(media).where(media.c.id == media_id).values(ai_status="pending", updated_at=utcnow()))
     submit(media_id, jpeg)
     return True
 
@@ -276,6 +298,24 @@ def sweep_stale(user_id: str, limit: int = 4) -> int:
         ids = [r[0] for r in conn.execute(select(media.c.id).where(
             media.c.user_id == user_id, media.c.ai_status == "pending", media.c.updated_at < cutoff,
             media.c.is_deleted.is_(False)).limit(limit)).all()]
+    for media_id in ids:
+        reanalyze(media_id)
+    return len(ids)
+
+
+def resume_pending(limit: int = 25, older_than_minutes: int = 2) -> int:
+    """Persistent queue: the database *is* the queue. Anything still `pending` (server restarted, worker crashed)
+    is picked up again, so no upload is ever left unanalysed. Bounded so a restart never floods a small host."""
+    try:
+        if _executor._work_queue.qsize() > 40:        # type: ignore[attr-defined]
+            return 0
+    except Exception:
+        pass
+    cutoff = utcnow() - timedelta(minutes=older_than_minutes)
+    with engine.connect() as conn:
+        ids = [r[0] for r in conn.execute(select(media.c.id).where(
+            media.c.ai_status == "pending", media.c.updated_at < cutoff, media.c.is_deleted.is_(False))
+            .order_by(media.c.updated_at).limit(limit)).all()]
     for media_id in ids:
         reanalyze(media_id)
     return len(ids)

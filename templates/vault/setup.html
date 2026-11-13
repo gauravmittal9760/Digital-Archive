@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Private Vault{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Private Vault</h1><p>End-to-end style protection for your most sensitive files.</p></div></div>
+<div class="card" style="max-width:520px">
+<div class="vault-lock">{{ ui.icon('lock') }}</div>
+<p class="hint">Files in the vault are encrypted (AES-256-GCM) before storage, hidden from library, search and shares, and opened only with a separate passphrase. <b>If you lose both the passphrase and the recovery key, the files cannot be recovered.</b></p>
+<form method="post" action="{{ url_for('vault.setup') }}" class="mt">{{ ui.csrf() }}
+{{ ui.pw('passphrase','Vault passphrase (min 8 characters)',autocomplete='new-password') }}
+{{ ui.pw('confirm','Confirm passphrase',autocomplete='new-password') }}
+<button class="btn mt">{{ ui.icon('lock') }}Create vault</button></form></div>
+{% endblock %}

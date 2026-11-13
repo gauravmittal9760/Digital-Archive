@@ -6,6 +6,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#3341E8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="{{ url_for('app_manifest') }}">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
 <title>{% block title %}Digital Archive{% endblock %} · Digital Archive</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%233341E8'/%3E%3Cpath d='M18 24h28v22H18zM22 18h20' stroke='white' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,9 +30,11 @@
     <a href="{{ url_for('media.gallery') }}" class="{{ 'on' if request.endpoint=='media.gallery' }}">{{ ui.icon('grid') }}Gallery</a>
     <a href="{{ url_for('intelligence.search') }}" class="{{ 'on' if request.endpoint=='intelligence.search' }}">{{ ui.icon('search') }}Search</a>
     <a href="{{ url_for('media.upload') }}" class="{{ 'on' if request.endpoint=='media.upload' }}">{{ ui.icon('upload') }}Upload</a>
+    <a href="{{ url_for('main.on_this_day') }}" class="{{ 'on' if request.endpoint=='main.on_this_day' }}">{{ ui.icon('history') }}Rewind</a>
   </nav>
   {% endif %}
   <div class="top-right">
+    {% if current_user %}<button class="icon-btn" id="installApp" type="button" aria-label="Install Digital Archive" title="Install app" hidden>{{ ui.icon('download') }}</button>{% endif %}
     <button class="icon-btn theme-toggle" type="button" id="themeToggle" aria-label="Switch theme" title="Switch theme">
       <svg class="ic sun"><use href="#i-sun"/></svg><svg class="ic moon"><use href="#i-moon"/></svg>
     </button>
@@ -60,5 +68,6 @@
 <button class="icon-btn to-top" id="toTop" type="button" aria-label="Back to top">{{ ui.icon('arrow-up') }}</button>
 <script>window.DA={csrf:"{{ csrf_token() }}",themeUrl:"{{ url_for('account.set_theme') }}"};</script>
 <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("{{ url_for('service_worker') }}").catch(function(){})})}</script>
 {% block scripts %}{% endblock %}
 </body></html>

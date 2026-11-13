@@ -13,3 +13,5 @@ instance/uploads/
 instance/*.log
 .DS_Store
 Thumbs.db
+
+instance/

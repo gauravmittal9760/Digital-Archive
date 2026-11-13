@@ -13,7 +13,7 @@ from services.events import client_agent, client_ip, log_event
 USER_COLUMNS = [
     users.c.id, users.c.email, users.c.password_hash, users.c.security_question, users.c.security_answer_hash,
     users.c.session_version, users.c.is_blocked, users.c.blocked_reason, users.c.locked_until, users.c.theme,
-    users.c.ai_enabled, users.c.two_step_enabled, users.c.last_login_at, users.c.created_at,
+    users.c.ai_enabled, users.c.reminders_enabled, users.c.vault_wrapped_key, users.c.two_step_enabled, users.c.last_login_at, users.c.created_at,
     profiles.c.username, profiles.c.display_name, profiles.c.avatar_url, profiles.c.bio,
 ]
 
@@ -133,12 +133,19 @@ def authenticate(username: str, password: str) -> dict:
         return {"status": "blocked", "reason": user.get("blocked_reason") or ""}
 
     security.reset_limit(user_key)
+    with engine.begin() as conn:
+        conn.execute(update(users).where(users.c.id == user["id"]).values(locked_until=None))
+    return {"status": "ok", "user": user}
+
+
+def record_successful_login(user: dict) -> None:
+    """Record a completed login only after any configured 2FA challenge succeeds."""
     now = utcnow()
     with engine.begin() as conn:
-        conn.execute(update(users).where(users.c.id == user["id"]).values(locked_until=None, last_login_at=now))
+        conn.execute(update(users).where(users.c.id == user["id"]).values(last_login_at=now))
         conn.execute(insert(login_history).values(
-            id=new_id(), user_id=user["id"], success=True, ip_address=ip[:64], user_agent=client_agent(), created_at=now))
-    return {"status": "ok", "user": user}
+            id=new_id(), user_id=user["id"], success=True, ip_address=(client_ip() or "")[:64],
+            user_agent=client_agent(), created_at=now))
 
 
 # ----------------------------------------------------------------------- credentials

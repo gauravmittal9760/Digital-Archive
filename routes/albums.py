@@ -37,7 +37,7 @@ def index():
     for album in items:
         album["cover_url"] = storage_service.delivery_url((album["cover"] or {}).get("thumb_path") or (album["cover"] or {}).get("storage_path")) \
             if album.get("cover") else None
-    return render_template("albums/index.html", albums=items, back_url=url_for("main.hub", slug="library"))
+    return render_template("albums/index.html", albums=items, suggestions=album_service.suggestions(g.user["id"]), back_url=url_for("main.hub", slug="library"))
 
 
 @bp.route("/<album_id>")
@@ -103,4 +103,16 @@ def cover(album_id):
     _album_or_404(album_id)
     album_service.set_cover(album_id, g.user["id"], request.form.get("media_id", ""))
     flash("Album cover updated.", "success")
+    return redirect(url_for("albums.detail", album_id=album_id))
+
+
+@bp.route("/suggest", methods=["POST"])
+@login_required
+def suggest():
+    album_id = album_service.create_from_suggestion(g.user["id"], request.form.get("key", ""))
+    if not album_id:
+        flash("That suggestion is no longer available.", "error")
+        return redirect(url_for("albums.index"))
+    log_activity(g.user["id"], "album_created", "Auto-suggested album")
+    flash("Album created from suggestion.", "success")
     return redirect(url_for("albums.detail", album_id=album_id))

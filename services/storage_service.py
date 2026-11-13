@@ -1,12 +1,16 @@
 """Private Cloudinary storage (authenticated assets) with a local-disk fallback for development.
 
 Delivery strategy
-* photos / videos -> signed Cloudinary CDN URLs (fast, no API rate-limit usage)
+* photos / videos -> short-lived app tokens (/dl/<token>, 30-60 min): images are streamed through the app with
+  browser caching, videos are redirected to a 5-minute Cloudinary download URL
 * documents (PDF, DOCX...) -> streamed through the app after an ownership check, because
   Cloudinary free accounts block direct PDF/ZIP delivery by default.
 """
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import io
 import logging
 import os
@@ -112,26 +116,65 @@ def upload_bytes(storage_path: str, data: bytes, content_type: str, overwrite: b
 
 
 # ----------------------------------------------------------------------- delivery
+MEDIA_URL_MINUTES = max(5, int(os.getenv("MEDIA_URL_TTL_MINUTES", "30") or 30))
+
+
+def _b64(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode().rstrip("=")
+
+
+def _unb64(text: str) -> bytes:
+    return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
+
+
+def _delivery_sig(payload: bytes) -> bytes:
+    from config import SECRET_KEY
+    return hmac.new(SECRET_KEY.encode(), b"delivery:" + payload, hashlib.sha256).digest()[:20]
+
+
+def make_delivery_token(storage_path: str, now: float | None = None) -> str:
+    """Self-expiring capability token for one stored object.
+
+    The expiry is rounded to a time bucket, so every page render inside the same window yields the *same* URL
+    (browser caching keeps working) while the link still dies 1-2 windows (default 30-60 min) after it was issued.
+    """
+    window = MEDIA_URL_MINUTES * 60
+    expires = (int(now if now is not None else time.time()) // window + 2) * window
+    payload = f"{expires}|{storage_path}".encode()
+    return f"{_b64(payload)}.{_b64(_delivery_sig(payload))}"
+
+
+def read_delivery_token(token: str, now: float | None = None) -> tuple[str, int] | None:
+    """Return (storage_path, expires_at) for a valid, unexpired token, else None."""
+    try:
+        body, sig = token.split(".", 1)
+        payload = _unb64(body)
+        if not hmac.compare_digest(_unb64(sig), _delivery_sig(payload)):
+            return None
+        expires, path = payload.decode().split("|", 1)
+        expires = int(expires)
+    except (ValueError, UnicodeDecodeError, TypeError):
+        return None
+    if expires <= (now if now is not None else time.time()) or "/vault/" in f"/{path}":
+        return None
+    return path, expires
+
+
 def delivery_url(storage_path: str | None) -> str | None:
-    """Signed CDN URL for photos/videos; None for documents (use the proxy route)."""
+    """Short-lived URL for photos/videos/avatars (served via /dl/<token>); None for documents (use the proxy route)."""
     if not storage_path:
         return None
-    if cloudinary_ready():
-        resource_type, public_id, fmt = asset_info(storage_path)
-        if resource_type == "raw":
-            return None
-        _cloudinary()
-        from cloudinary.utils import cloudinary_url
-        try:
-            return cloudinary_url(public_id, resource_type=resource_type, type="authenticated",
-                                  sign_url=True, secure=True, format=fmt)[0]
-        except Exception as exc:                                       # pragma: no cover
-            log.warning("Could not sign URL: %s", exc)
-            return None
-    if IS_PRODUCTION:
+    if cloudinary_ready() and asset_info(storage_path)[0] == "raw":
+        return None
+    if IS_PRODUCTION and not cloudinary_ready():
         return None
     from flask import url_for
-    return url_for("media.local_file", storage_path=storage_path)
+    return url_for("media.delivery", token=make_delivery_token(storage_path))
+
+
+def short_download_url(storage_path: str, ttl: int = 300) -> str:
+    """Cloudinary API download URL that really expires after `ttl` seconds (used for video redirects)."""
+    return _download_url(storage_path, ttl)
 
 
 def _download_url(storage_path: str, ttl: int = 600) -> str:
@@ -231,3 +274,50 @@ def cloudinary_prefix_bytes(prefix: str, max_pages: int = 6) -> dict:
     except Exception as exc:
         return {"available": False, "error": str(exc)[:200]}
     return {"available": True, "bytes": total, "count": count, "truncated": truncated}
+
+
+# ------------------------------------------------------------- deferred deletion queue
+def queue_cleanup(conn, paths) -> None:
+    """Record objects to delete. Call inside the same transaction that removes their database rows."""
+    from sqlalchemy import insert
+    from database import new_id, storage_cleanup, utcnow
+    for path in dict.fromkeys(p for p in (paths or []) if p):
+        conn.execute(insert(storage_cleanup).values(id=new_id(), storage_path=path, attempts=0, created_at=utcnow()))
+
+
+def process_cleanup(limit: int = 100) -> int:
+    """Delete queued objects. Rows leave the queue only after the object is really gone; failures are retried later."""
+    from sqlalchemy import delete, select, update
+    from database import engine, storage_cleanup
+    with engine.connect() as conn:
+        rows = conn.execute(select(storage_cleanup.c.id, storage_cleanup.c.storage_path).order_by(storage_cleanup.c.created_at).limit(limit)).all()
+    done = 0
+    for row_id, path in rows:
+        try:
+            delete_object(path)
+        except Exception as exc:
+            log.warning("Cleanup of %s failed (will retry): %s", path, exc)
+            with engine.begin() as conn:
+                conn.execute(update(storage_cleanup).where(storage_cleanup.c.id == row_id).values(attempts=storage_cleanup.c.attempts + 1))
+            continue
+        with engine.begin() as conn:
+            conn.execute(delete(storage_cleanup).where(storage_cleanup.c.id == row_id))
+        done += 1
+    return done
+
+
+def delete_or_queue(paths) -> None:
+    """Best-effort immediate delete; anything that fails is queued for retry so no orphan is left forever."""
+    failed = []
+    for path in dict.fromkeys(p for p in (paths or []) if p):
+        try:
+            delete_object(path)
+        except Exception:
+            failed.append(path)
+    if failed:
+        try:
+            from database import engine
+            with engine.begin() as conn:
+                queue_cleanup(conn, failed)
+        except Exception:
+            log.exception("Could not queue cleanup for %s", failed)

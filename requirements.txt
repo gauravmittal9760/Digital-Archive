@@ -4,11 +4,11 @@ gunicorn>=22.0
 python-dotenv>=1.0
 Pillow>=10.3
 SQLAlchemy>=2.0,<2.1
-psycopg[binary]>=3.1
+pg8000>=1.31          # pure-Python PostgreSQL driver (no DLLs, works on locked-down Windows)
 cloudinary>=1.40
 pypdf>=4.0
 numpy>=1.26
-onnxruntime>=1.17      # free offline picture recognition (MobileNetV2, ~14 MB model auto-downloaded)
+onnxruntime>=1.17      # free offline picture recognition; model is bundled in models/
 # optional (adds ~30 MB): bundled ffmpeg for local video compression
 # imageio-ffmpeg>=0.5
-pytesseract==0.3.13
+cryptography>=42.0      # Private Vault encryption (AES-GCM, scrypt)

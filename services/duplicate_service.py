@@ -9,6 +9,28 @@ from services.media_service import hamming
 NEAR_THRESHOLD = 6          # differing bits out of 64
 
 
+def _candidate_pairs(photos: list[dict]):
+    """Yield only pairs that can be within NEAR_THRESHOLD bits.
+
+    The 64-bit hash is cut into 8 bytes. Two hashes that differ in at most 7 bits must share at least one
+    identical byte (pigeonhole), so only photos in the same (position, byte) bucket are compared. This replaces the
+    all-pairs loop (n^2) and stays exact for NEAR_THRESHOLD <= 7.
+    """
+    buckets: dict[tuple[int, str], list[dict]] = {}
+    for photo in photos:
+        h = (photo["phash"] or "").ljust(16, "0")
+        for pos in range(8):
+            buckets.setdefault((pos, h[pos * 2: pos * 2 + 2]), []).append(photo)
+    seen: set[tuple[str, str]] = set()
+    for members in buckets.values():
+        for i, a in enumerate(members):
+            for b in members[i + 1:]:
+                key = (a["id"], b["id"]) if a["id"] < b["id"] else (b["id"], a["id"])
+                if key not in seen:
+                    seen.add(key)
+                    yield a, b
+
+
 def find_duplicate_groups(user_id: str) -> list[dict]:
     with engine.connect() as conn:
         rows = [dict(r._mapping) for r in conn.execute(select(
@@ -38,9 +60,8 @@ def find_duplicate_groups(user_id: str) -> list[dict]:
             kind[other] = kind[ids[0]] = "exact"
 
     photos = [r for r in rows if r["media_type"] == "photo" and r["phash"]]
-    for i, a in enumerate(photos):
-        for b in photos[i + 1:]:
-            if find(a["id"]) != find(b["id"]) and hamming(a["phash"], b["phash"]) <= NEAR_THRESHOLD:
+    for a, b in _candidate_pairs(photos):
+        if find(a["id"]) != find(b["id"]) and hamming(a["phash"], b["phash"]) <= NEAR_THRESHOLD:
                 union(a["id"], b["id"])
                 kind.setdefault(a["id"], "similar"); kind.setdefault(b["id"], "similar")
     groups: dict[str, list[dict]] = {}

@@ -5,5 +5,7 @@
 <form method="post" class="card" style="max-width:720px">{{ ui.csrf() }}
   <div class="setting-row" style="padding-top:0"><div class="grow"><b>AI picture analysis</b><span>{% if vision %}Sends a small, downsized copy of new pictures to Google’s free Gemini service to understand photos better.{% else %}Cloud vision is not configured, so only on-server models are used.{% endif %}</span></div>
     <label class="switch"><input type="checkbox" name="ai_enabled" value="1" {{ 'checked' if current_user.ai_enabled }}><i></i></label></div>
+  <div class="setting-row"><div class="grow"><b>Expiry reminder e-mails</b><span>E-mail me 30, 7 and 1 day before a tracked document (passport, insurance, warranty…) expires.</span></div>
+    <label class="switch"><input type="checkbox" name="reminders_enabled" value="1" {{ 'checked' if current_user.reminders_enabled }}><i></i></label></div>
   <p class="hint">Turn off to keep everything on this server. Documents with text are still sorted locally.</p><button class="btn mt">{{ ui.icon('check') }}Save</button></form>
 {% endblock %}

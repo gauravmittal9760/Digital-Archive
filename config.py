@@ -32,6 +32,7 @@ APP_ENV = _str("APP_ENV", "development").lower()
 IS_PRODUCTION = APP_ENV == "production"
 SECRET_KEY = _str("SECRET_KEY")
 PUBLIC_BASE_URL = _str("PUBLIC_BASE_URL").rstrip("/")
+APP_TIMEZONE = _str("APP_TIMEZONE", "Asia/Kolkata")
 MAX_CONTENT_LENGTH_MB = _int("MAX_CONTENT_LENGTH_MB", 110)
 
 if not SECRET_KEY:
@@ -41,10 +42,12 @@ if not SECRET_KEY:
 
 # ----------------------------------------------------------------------- database
 DATABASE_URL = _str("DATABASE_URL", "sqlite:///digital_archive.db")
+# Default PostgreSQL driver is pg8000 (pure Python - no DLL/libpq, so it also works on locked-down Windows PCs).
+# Put "postgresql+psycopg://" in DATABASE_URL yourself if you prefer psycopg and it works on your machine.
 if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
-elif DATABASE_URL.startswith("postgresql://") and "+psycopg" not in DATABASE_URL:
-    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
+    DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"):]
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = "postgresql+pg8000://" + DATABASE_URL[len("postgresql://"):]
 
 if IS_PRODUCTION and not DATABASE_URL.startswith("postgresql"):
     raise RuntimeError("DATABASE_URL must point to PostgreSQL (Neon) in production.")
@@ -62,7 +65,8 @@ BREVO_SENDER_NAME = _str("BREVO_SENDER_NAME", "Digital Archive")
 # ------------------------------------------------- optional FREE vision AI (Gemini)
 GEMINI_API_KEY = _str("GEMINI_API_KEY")
 GEMINI_MODEL = _str("GEMINI_MODEL", "gemini-2.5-flash")
-ENABLE_OCR = _bool("ENABLE_OCR", False)  # local Tesseract OCR, only if installed
+ENABLE_OCR = _bool("ENABLE_OCR", False)  # Tesseract OCR, only when explicitly enabled
+TESSERACT_CMD = _str("TESSERACT_CMD", "tesseract")
 
 # -------------------------------------------------------------------- admin panel
 ADMIN_USERNAME = _str("ADMIN_USERNAME")

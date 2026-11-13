@@ -6,6 +6,7 @@ import io
 import os
 import re
 import secrets
+import time
 import zipfile
 from collections import Counter, OrderedDict
 from datetime import timedelta
@@ -16,9 +17,9 @@ from flask import (Blueprint, Response, abort, flash, g, jsonify, redirect, rend
 from sqlalchemy import delete, func, insert, or_, select, update
 
 import config
-from database import engine, file_versions, media, new_id, share_links, utcnow, aware
+from database import engine, file_versions, media, new_id, share_access, share_links, utcnow, aware
 from routes.common import login_required, media_view, owned_media, safe_next
-from services import ai_service, classifier, media_service, stats_service, storage_service, trash_service, upload_service
+from services import ai_service, classifier, security, media_service, stats_service, storage_service, trash_service, upload_service
 from services.events import log_activity
 
 bp = Blueprint("media", __name__)
@@ -204,6 +205,57 @@ def _stream(row: dict, download: bool = False):
     return Response(stream_with_context(generate()), mimetype=row.get("mime_type") or "application/octet-stream", headers=headers)
 
 
+_IMG_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".gif": "image/gif", ".avif": "image/avif"}
+
+
+@bp.route("/dl/<token>")
+def delivery(token):
+    """Serve a photo/thumbnail/avatar/video for a short-lived signed token (expired or forged tokens look like 404)."""
+    parsed = storage_service.read_delivery_token(token)
+    if not parsed:
+        abort(404)
+    path, expires = parsed
+    kind = storage_service.asset_info(path)[0]
+    headers = {"X-Robots-Tag": "noindex", "Content-Security-Policy": "default-src 'none'; sandbox"}
+    if not storage_service.cloudinary_ready():                        # local development
+        if config.IS_PRODUCTION:
+            abort(404)
+        try:
+            local = storage_service._local_path(path)
+            if not local.is_file():
+                abort(404)
+        except ValueError:
+            abort(404)
+        response = send_from_directory(local.parent, local.name, conditional=True)
+        response.headers.update(headers)
+        response.headers["Cache-Control"] = "private, max-age=300"
+        return response
+    if kind == "video":
+        try:
+            response = redirect(storage_service.short_download_url(path, 300), code=302)
+        except Exception:
+            abort(404)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+    try:
+        stream, length = storage_service.open_stream(path)
+    except Exception:
+        abort(404)
+
+    def generate():
+        try:
+            while chunk := stream.read(64 * 1024):
+                yield chunk
+        finally:
+            stream.close()
+
+    headers["Cache-Control"] = f"private, max-age={max(60, min(expires - int(time.time()), 3600))}"
+    if length:
+        headers["Content-Length"] = str(length)
+    ext = os.path.splitext(path)[1].lower()
+    return Response(stream_with_context(generate()), mimetype=_IMG_TYPES.get(ext, "application/octet-stream"), headers=headers)
+
+
 @bp.route("/local-file/<path:storage_path>")
 def local_file(storage_path):
     """Development-only private file delivery (used when Cloudinary is not configured)."""
@@ -231,6 +283,16 @@ def update_media(media_id):
         values.update(category=category, category_locked=True)
     elif category == "auto":
         values["category_locked"] = False
+    if "expiry_date" in request.form:
+        raw = request.form.get("expiry_date", "").strip()
+        try:
+            from datetime import date as _date
+            new_expiry = _date.fromisoformat(raw) if raw else None
+        except ValueError:
+            new_expiry = row.get("expiry_date")
+            flash("Expiry date was not valid and was ignored.", "error")
+        if new_expiry != row.get("expiry_date"):
+            values.update(expiry_date=new_expiry, expiry_notice=0)
     with engine.begin() as conn:
         conn.execute(update(media).where(media.c.id == media_id, media.c.user_id == g.user["id"]).values(**values))
     classifier.forget_user_model(g.user["id"])
@@ -399,6 +461,9 @@ def replace(media_id):
             width, height, thumb_bytes = processed["width"], processed["height"], processed["thumb_bytes"]
         else:
             stored, content_type, ext = data, mimetype, None
+        # The previous version stays in history, so a replacement *adds* to the user's storage.
+        if stats_service.storage_used(g.user["id"]) + len(stored) + len(thumb_bytes or b"") > stats_service.QUOTA_BYTES:
+            raise ValueError(f"This replacement would exceed your {stats_service.human_size(stats_service.QUOTA_BYTES)} storage quota.")
         new_path = media_service.generate_storage_path(g.user["id"], kind, name, ext if kind == "photo" else None, unique)
         storage_service.upload_bytes(new_path, stored, content_type)
         new_thumb = None
@@ -406,14 +471,17 @@ def replace(media_id):
             new_thumb = media_service.thumb_storage_path(g.user["id"], unique)
             storage_service.upload_bytes(new_thumb, thumb_bytes, "image/webp")
         try:
-            with engine.begin() as conn:
+            with stats_service.quota_transaction(g.user["id"], len(stored) + len(thumb_bytes or b"")) as conn:
                 _archive_current(conn, current)
                 conn.execute(update(media).where(media.c.id == media_id).values(
                     file_name=name, storage_path=new_path, thumb_path=new_thumb or thumb_path, mime_type=content_type,
                     file_size=len(stored), width=width, height=height, checksum=media_service.sha256_hex(stored),
                     orig_checksum=media_service.sha256_hex(data), updated_at=utcnow()))
+        except stats_service.QuotaExceeded as exc:
+            storage_service.delete_or_queue([new_path, new_thumb])
+            raise ValueError(str(exc))
         except Exception:
-            storage_service.delete_objects([new_path, new_thumb])
+            storage_service.delete_or_queue([new_path, new_thumb])
             raise
         if new_thumb and thumb_path and thumb_path != new_thumb:
             try:
@@ -466,11 +534,18 @@ def create_share(media_id):
     owned_media(media_id)
     hours = request.form.get("expires_hours", type=int)
     hours = hours if hours in {1, 24, 168, 720} else 24
+    pw = (request.form.get("share_password") or "").strip()
+    if pw and not 4 <= len(pw) <= 64:
+        flash("Link password must be 4-64 characters.", "error")
+        return redirect(url_for("media.detail", media_id=media_id))
     token = secrets.token_urlsafe(32)
     with engine.begin() as conn:
-        conn.execute(insert(share_links).values(id=new_id(), token_hash=hashlib.sha256(token.encode()).hexdigest(), user_id=g.user["id"],
-                                               media_id=media_id, expires_at=utcnow() + timedelta(hours=hours), created_at=utcnow()))
-    log_activity(g.user["id"], "share_created", f"Read-only link, expires in {hours} hour(s)")
+        conn.execute(insert(share_links).values(
+            id=new_id(), token_hash=hashlib.sha256(token.encode()).hexdigest(), user_id=g.user["id"], media_id=media_id,
+            expires_at=utcnow() + timedelta(hours=hours), created_at=utcnow(),
+            password_hash=security.hash_password(pw) if pw else None,
+            allow_download=bool(request.form.get("allow_download")), view_count=0))
+    log_activity(g.user["id"], "share_created", f"Read-only link, expires in {hours} hour(s)" + (", password protected" if pw else ""))
     session["new_share_link"] = _public_url(url_for("media.shared_view", token=token))
     flash("Share link created. Copy it from the banner below.", "success")
     return redirect(url_for("media.shares"))
@@ -481,12 +556,15 @@ def create_share(media_id):
 def shares():
     with engine.connect() as conn:
         rows = conn.execute(select(share_links.c.id, share_links.c.expires_at, share_links.c.revoked_at, share_links.c.created_at,
-                                   media.c.file_name, media.c.media_type, media.c.is_deleted).join(media, share_links.c.media_id == media.c.id)
+                                   share_links.c.password_hash, share_links.c.allow_download, share_links.c.view_count,
+                                   share_links.c.last_accessed_at, media.c.file_name, media.c.media_type, media.c.is_deleted)
+                            .join(media, share_links.c.media_id == media.c.id)
                             .where(share_links.c.user_id == g.user["id"]).order_by(share_links.c.created_at.desc()).limit(300)).mappings().all()
     now = utcnow()
     links = []
     for row in rows:
         item = dict(row)
+        item["protected"] = bool(item.pop("password_hash"))
         item["status"] = "revoked" if item["revoked_at"] else ("expired" if aware(item["expires_at"]) <= now else
                                                               ("in trash" if item["is_deleted"] else "active"))
         links.append(item)
@@ -504,10 +582,24 @@ def revoke_share(share_id):
     return redirect(url_for("media.shares"))
 
 
+@bp.route("/shares/<share_id>/history")
+@login_required
+def share_history(share_id):
+    with engine.connect() as conn:
+        link = conn.execute(select(share_links.c.id, media.c.file_name, share_links.c.view_count).join(media, share_links.c.media_id == media.c.id)
+                            .where(share_links.c.id == share_id, share_links.c.user_id == g.user["id"])).mappings().first()
+        if not link:
+            abort(404)
+        events = conn.execute(select(share_access).where(share_access.c.share_id == share_id)
+                              .order_by(share_access.c.created_at.desc()).limit(100)).mappings().all()
+    return render_template("media/share_history.html", link=link, events=[dict(e) for e in events], back_url=url_for("media.shares"))
+
+
 def _shared_row(token: str):
     digest = hashlib.sha256(token.encode()).hexdigest()
     with engine.connect() as conn:
-        row = conn.execute(select(media).join(share_links, share_links.c.media_id == media.c.id).where(
+        row = conn.execute(select(media, share_links.c.id.label("share_id"), share_links.c.password_hash.label("share_pw"),
+                                  share_links.c.allow_download.label("share_dl")).join(share_links, share_links.c.media_id == media.c.id).where(
             share_links.c.token_hash == digest, share_links.c.revoked_at.is_(None), share_links.c.expires_at > utcnow(),
             media.c.is_deleted.is_(False))).mappings().first()
     if not row:
@@ -515,15 +607,64 @@ def _shared_row(token: str):
     return dict(row)
 
 
+def _unlocked(row: dict) -> bool:
+    return not row["share_pw"] or row["share_id"] in session.get("share_ok", [])
+
+
+def _record_access(row: dict, action: str) -> None:
+    try:
+        with engine.begin() as conn:
+            conn.execute(insert(share_access).values(id=new_id(), share_id=row["share_id"], action=action,
+                                                     ip_address=(request.remote_addr or "")[:64],
+                                                     user_agent=(request.headers.get("User-Agent") or "")[:255], created_at=utcnow()))
+            if action == "view":
+                conn.execute(update(share_links).where(share_links.c.id == row["share_id"])
+                             .values(view_count=share_links.c.view_count + 1, last_accessed_at=utcnow()))
+    except Exception:
+        pass
+
+
+def _private(response):
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return response
+
+
 @bp.route("/shared/<token>")
 def shared_view(token):
     row = _shared_row(token)
-    return render_template("media/shared.html", item=row, file_url=url_for("media.shared_file", token=token))
+    if not _unlocked(row):
+        return _private(Response(render_template("media/shared_lock.html", token=token, error=None)))
+    _record_access(row, "view")
+    return _private(Response(render_template("media/shared.html", item=row, file_url=url_for("media.shared_file", token=token),
+                                             can_download=bool(row["share_dl"]))))
+
+
+@bp.route("/shared/<token>/unlock", methods=["POST"])
+def shared_unlock(token):
+    row = _shared_row(token)
+    key = f"sharepw:{row['share_id']}:{request.remote_addr}"
+    wait = security.blocked_seconds(key)
+    if wait:
+        return _private(Response(render_template("media/shared_lock.html", token=token, error=f"Too many attempts. Try again in {wait // 60 + 1} min."), status=429))
+    if row["share_pw"] and security.verify_password(row["share_pw"], request.form.get("password", "")):
+        session["share_ok"] = (session.get("share_ok", []) + [row["share_id"]])[-20:]
+        return redirect(url_for("media.shared_view", token=token))
+    security.register_hit(key, 5, 900, 900)
+    return _private(Response(render_template("media/shared_lock.html", token=token, error="Wrong password."), status=403))
 
 
 @bp.route("/shared/<token>/file")
 def shared_file(token):
-    return _stream(_shared_row(token), download=bool(request.args.get("download")))
+    row = _shared_row(token)
+    if not _unlocked(row):
+        abort(403)
+    download = bool(request.args.get("download"))
+    if download and not row["share_dl"]:
+        abort(403)
+    if download:
+        _record_access(row, "download")
+    return _private(_stream(row, download=download))
 
 
 # ------------------------------------------------------------------------- export

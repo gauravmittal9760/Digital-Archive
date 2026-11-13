@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from sqlalchemy import delete, select
 
-from database import engine, file_versions, media, profiles, users
+from database import engine, file_versions, media, profiles, users, vault_items
 from services import auth_service, classifier, storage_service
 from services.events import log_event
 
@@ -22,6 +22,7 @@ def delete_account(user_id: str, actor: str = "user") -> None:
         for row in conn.execute(select(media.c.storage_path, media.c.thumb_path).where(media.c.user_id == user_id)).all():
             paths.extend(row)
         paths += [r[0] for r in conn.execute(select(file_versions.c.storage_path).where(file_versions.c.user_id == user_id)).all()]
+        paths += [r[0] for r in conn.execute(select(vault_items.c.storage_path).where(vault_items.c.user_id == user_id)).all()]
     if user.get("avatar_url"):
         paths.append(user["avatar_url"])
     failed = 0

@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import (BigInteger, Boolean, Column, DateTime, Float, ForeignKey, Index, Integer,
+from sqlalchemy import (BigInteger, Boolean, Column, Date, DateTime, Float, ForeignKey, Index, Integer,
                         MetaData, String, Table, Text, create_engine, event, false, inspect,
                         text, true)
 from sqlalchemy.types import TypeDecorator
@@ -78,6 +78,10 @@ users = Table(
     Column("ai_enabled", Boolean, nullable=False, server_default=true()),
     Column("two_step_enabled", Boolean, nullable=False, server_default=false()),
     Column("last_login_at", UTCDateTime),
+    Column("reminders_enabled", Boolean, nullable=False, server_default=true()),   # document-expiry e-mails
+    Column("vault_salt", String(64)),                                  # Private Vault: key material (never the passphrase)
+    Column("vault_wrapped_key", Text),                                 # data key wrapped by the passphrase
+    Column("vault_recovery_wrapped", Text),                            # data key wrapped by the one-time recovery key
     _ts("created_at"), _ts("updated_at"),
 )
 
@@ -118,6 +122,12 @@ media = Table(
     Column("ai_source", String(30)),
     Column("ai_status", String(16), server_default="none"),            # none | pending | done | failed
     Column("category_locked", Boolean, nullable=False, server_default=false()),
+    Column("review_dismissed", Boolean, nullable=False, server_default=false()),
+    Column("doc_type", String(40)),                                    # detected document type (Aadhaar, Passport, Marksheet ...)
+    Column("doc_title", String(200)),
+    Column("issue_date", Date),
+    Column("expiry_date", Date),
+    Column("expiry_notice", Integer, nullable=False, server_default="0"),   # highest reminder stage already e-mailed
     Column("is_favorite", Boolean, nullable=False, server_default=false()),
     Column("is_deleted", Boolean, nullable=False, server_default=false()),
     Column("deleted_at", UTCDateTime),
@@ -168,6 +178,49 @@ share_links = Table(
     Column("media_id", String(36), ForeignKey("media.id", ondelete="CASCADE"), nullable=False, index=True),
     Column("expires_at", UTCDateTime, nullable=False),
     Column("revoked_at", UTCDateTime),
+    Column("password_hash", String(255)),                              # optional link password
+    Column("allow_download", Boolean, nullable=False, server_default=true()),
+    Column("view_count", Integer, nullable=False, server_default="0"),
+    Column("last_accessed_at", UTCDateTime),
+    _ts("created_at"),
+)
+
+share_access = Table(       # who opened a link (access history)
+    "share_access", metadata,
+    Column("id", String(36), primary_key=True, default=new_id),
+    Column("share_id", String(36), ForeignKey("share_links.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column("action", String(20), nullable=False),                      # view | download | denied | password_failed
+    Column("ip_address", String(64)),
+    Column("user_agent", String(255)),
+    _ts("created_at"),
+)
+
+vault_items = Table(        # Private Vault: AES-GCM encrypted blobs; names are visible only inside the unlocked vault
+    "vault_items", metadata,
+    Column("id", String(36), primary_key=True, default=new_id),
+    Column("user_id", String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column("file_name", String(255), nullable=False),
+    Column("mime_type", String(255)),
+    Column("plain_size", BigInteger, server_default="0"),
+    Column("file_size", BigInteger, server_default="0"),               # encrypted bytes stored
+    Column("storage_path", Text, nullable=False),
+    _ts("created_at"),
+)
+
+vault_sessions = Table(     # unlocked-vault sessions shared by all workers; the data key is encrypted with a server-side key
+    "vault_sessions", metadata,
+    Column("token_hash", String(64), primary_key=True),
+    Column("user_id", String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column("wrapped_key", Text, nullable=False),
+    _ts("expires_at", default=False),
+    _ts("created_at"),
+)
+
+storage_cleanup = Table(    # objects that must be deleted from storage; written in the same transaction as the DB change
+    "storage_cleanup", metadata,
+    Column("id", String(36), primary_key=True, default=new_id),
+    Column("storage_path", Text, nullable=False),
+    Column("attempts", Integer, server_default="0"),
     _ts("created_at"),
 )
 
@@ -271,6 +324,31 @@ app_state = Table(
 )
 
 # ------------------------------------------------------------------------ engine
+def postgres_engine_settings(url_string: str):
+    """Return (url, connect_args) for a PostgreSQL URL, tuned per driver.
+
+    pg8000 does not understand libpq-only query options that Neon puts in its URL (sslmode, channel_binding...), so
+    they are stripped and translated: sslmode other than 'disable' becomes a verified TLS context.
+    Small pool: Neon's free tier and 512 MB hosts do not need more.
+    """
+    from sqlalchemy.engine import make_url
+    url = make_url(url_string)
+    if url.drivername.endswith("+pg8000"):
+        query = dict(url.query)
+        sslmode = str(query.pop("sslmode", "require")).lower()
+        for key in ("channel_binding", "options", "application_name", "connect_timeout", "sslrootcert", "sslcert",
+                    "sslkey", "gssencmode", "target_session_attrs"):
+            query.pop(key, None)
+        args = {"timeout": 30}
+        if sslmode != "disable":
+            args["ssl_context"] = True
+        return url.set(query=query), args
+    # psycopg: prepare_threshold=None keeps it compatible with Neon's pooled (PgBouncer) endpoint.
+    return url, {"connect_timeout": 15, "prepare_threshold": None}
+
+
+if not DATABASE_URL.startswith("sqlite"):
+    _pg_url, _pg_connect_args = postgres_engine_settings(DATABASE_URL)
 if DATABASE_URL.startswith("sqlite"):
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False, "timeout": 30},
                            pool_pre_ping=True, future=True)
@@ -282,12 +360,8 @@ if DATABASE_URL.startswith("sqlite"):
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.close()
 else:
-    # Small pool: Neon's free tier and 512 MB hosts do not need more. `prepare_threshold=None`
-    # keeps psycopg compatible with Neon's pooled (PgBouncer) endpoint.
-    engine = create_engine(
-        DATABASE_URL, pool_pre_ping=True, pool_size=3, max_overflow=2, pool_recycle=240, future=True,
-        connect_args={"connect_timeout": 15, "prepare_threshold": None},
-    )
+    engine = create_engine(_pg_url, pool_pre_ping=True, pool_size=3, max_overflow=2, pool_recycle=240, future=True,
+                           connect_args=_pg_connect_args)
 
 
 # --------------------------------------------------------------------- migrations
@@ -332,6 +406,23 @@ def _relax_email_uniqueness(conn) -> None:
                 conn.execute(text(f'ALTER TABLE users DROP CONSTRAINT IF EXISTS "{uc["name"]}"'))
 
 
+EXTRA_INDEXES = [
+    "CREATE INDEX IF NOT EXISTS ix_vault_sessions_exp ON vault_sessions (expires_at)",
+    "CREATE INDEX IF NOT EXISTS ix_media_user_created ON media (user_id, created_at)",
+    "CREATE INDEX IF NOT EXISTS ix_media_user_category ON media (user_id, category)",
+    "CREATE INDEX IF NOT EXISTS ix_media_user_expiry ON media (user_id, expiry_date)",
+    "CREATE INDEX IF NOT EXISTS ix_media_ai_status ON media (ai_status)",
+    "CREATE INDEX IF NOT EXISTS ix_login_history_user_created ON login_history (user_id, created_at)",
+    "CREATE INDEX IF NOT EXISTS ix_otp_lookup ON otp_codes (purpose, email, created_at)",
+]
+
+
+def _ensure_indexes(conn) -> None:
+    """create_all() never adds indexes to tables that already exist, so do it explicitly (idempotent)."""
+    for statement in EXTRA_INDEXES:
+        conn.execute(text(statement))
+
+
 def _initialize_schema() -> None:
     """Create/upgrade the schema once, even when several workers boot together.
 
@@ -344,6 +435,7 @@ def _initialize_schema() -> None:
         metadata.create_all(conn)
         _sync_columns(conn)
         _relax_email_uniqueness(conn)
+        _ensure_indexes(conn)
 
 
 _initialized = False

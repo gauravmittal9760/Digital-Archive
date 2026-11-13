@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Recovery key{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Save your recovery key</h1><p>Shown only once.</p></div></div>
+<div class="card" style="max-width:520px;border-color:var(--warn,#d97706)">
+<p class="hint">This key is the only way to reset your vault passphrase. Write it down or store it in a password manager. We cannot show it again.</p>
+<input id="rk" value="{{ recovery }}" readonly style="font-family:monospace;font-size:1.1rem;text-align:center">
+<div class="row mt"><button class="btn soft" onclick="navigator.clipboard.writeText(document.getElementById('rk').value);this.textContent='Copied'">{{ ui.icon('copy') }}Copy</button>
+<a class="btn" href="{{ url_for('vault.index') }}">I saved it — open vault</a></div></div>
+{% endblock %}

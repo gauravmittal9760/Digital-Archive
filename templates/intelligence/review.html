@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Review queue{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Review queue</h1><p>The AI was unsure about these. Pick the right category — it also teaches your personal model.</p></div></div>
+{% if items %}<div class="stack">{% for m in items %}<div class="card row">
+<a href="{{ url_for('media.detail', media_id=m.id) }}" style="width:90px">{% if m.thumb_url %}<img src="{{ m.thumb_url }}" alt="" style="width:90px;border-radius:8px">{% else %}{{ ui.icon('file') }}{% endif %}</a>
+<div class="grow"><b>{{ m.file_name }}</b><p class="hint">Now: {{ m.category_label }}</p></div>
+<form method="post" action="{{ url_for('intelligence.review_action', media_id=m.id) }}" class="row">{{ ui.csrf() }}
+<select name="category">{% for c in CATEGORIES %}<option value="{{ c[0] }}" {{ 'selected' if m.category==c[0] }}>{{ c[1] }}</option>{% endfor %}</select>
+<button class="btn sm">Save</button><button class="btn ghost sm" name="dismiss" value="1">Looks fine</button></form></div>{% endfor %}</div>
+{% else %}<div class="empty">{{ ui.icon('check') }}<h3>All clear</h3><p>Nothing needs your review.</p></div>{% endif %}
+{% endblock %}

@@ -167,7 +167,7 @@ def _exif_info(image: Image.Image) -> dict:
 def dhash(image: Image.Image) -> str:
     """64-bit difference hash (hex). Similar pictures differ in only a few bits."""
     small = image.convert("L").resize((9, 8), Image.Resampling.LANCZOS)
-    pixels = list(small.getdata())
+    pixels = list(small.get_flattened_data())
     bits = 0
     for row in range(8):
         for col in range(8):
@@ -389,9 +389,21 @@ def extract_document_text(file_bytes: bytes, mimetype: str, limit: int = 20000) 
             tag = re.compile(r"<(?:w:t|a:t|t)(?:\s[^>]*)?>([^<]*)</(?:w:t|a:t|t)>")
             parts = []
             with zipfile.ZipFile(io.BytesIO(file_bytes)) as archive:
-                for name in archive.namelist():
+                # Office files are ZIP containers. Never decompress an unbounded member.
+                total_uncompressed = 0
+                for member in archive.infolist():
+                    total_uncompressed += max(0, int(member.file_size or 0))
+                    if total_uncompressed > 40 * 1024 * 1024:
+                        return None
+                    name = member.filename
                     if any(re.fullmatch(p, name) for p in patterns):
-                        parts.extend(tag.findall(archive.read(name).decode("utf-8", "ignore")))
+                        if member.file_size > 8 * 1024 * 1024:
+                            continue
+                        with archive.open(member) as handle:
+                            raw = handle.read(8 * 1024 * 1024 + 1)
+                        if len(raw) > 8 * 1024 * 1024:
+                            continue
+                        parts.extend(tag.findall(raw.decode("utf-8", "ignore")))
                         if sum(map(len, parts)) > limit:
                             break
             return " ".join(parts).strip()[:limit] or None

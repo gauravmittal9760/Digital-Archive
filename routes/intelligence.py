@@ -6,9 +6,11 @@ from collections import Counter
 from flask import Blueprint, flash, g, redirect, render_template, request, url_for
 from sqlalchemy import select, update
 
+import re
+
 from database import engine, media, utcnow
 from routes.common import login_required, media_view
-from services import ai_service, classifier, duplicate_service, ml_service, smart_search, stats_service
+from services import ai_service, classifier, doc_intel, duplicate_service, ml_service, reminder_service, smart_search, stats_service
 from services.events import log_activity
 
 bp = Blueprint("intelligence", __name__)
@@ -83,4 +85,61 @@ def clean_duplicates():
 @login_required
 def storage():
     overview = stats_service.storage_overview(g.user["id"])
-    return render_template("intelligence/storage.html", o=overview, back_url=url_for("main.hub", slug="storage"))
+    return render_template("intelligence/storage.html", o=overview, tips=stats_service.optimizer_tips(g.user["id"], overview), back_url=url_for("main.hub", slug="storage"))
+
+
+@bp.route("/expiry")
+@login_required
+def expiry():
+    items = reminder_service.expiring(g.user["id"], within_days=365)
+    expired = [media_view(i) | {"days_left": i["days_left"], "doc_title": i.get("doc_title")} for i in items if i["days_left"] < 0]
+    soon = [media_view(i) | {"days_left": i["days_left"], "doc_title": i.get("doc_title")} for i in items if i["days_left"] >= 0]
+    return render_template("intelligence/expiry.html", expired=expired, soon=soon, back_url=url_for("main.hub", slug="smart"))
+
+
+@bp.route("/ask")
+@login_required
+def ask():
+    """Find the lines inside your documents that answer a question (keyword + smart-search ranking, fully local)."""
+    q = request.args.get("q", "").strip()[:160]
+    answers = []
+    if q:
+        items = _all_items(g.user["id"])
+        for item in items:
+            item["category_label"] = classifier.CATEGORY_LABEL[classifier.normalize_category(item.get("category"))]
+        ranked = smart_search.search(items, q)["results"][:8]
+        words = [w for w in re.findall(r"\w{3,}", q.lower()) if w not in {"the", "and", "for", "what", "which", "kab", "kya", "meri", "mera", "mere"}]
+        for item in ranked:
+            snippets = []
+            for line in re.split(r"[\n\r]+", item.get("extracted_text") or ""):
+                if any(w in line.lower() for w in words) and 6 <= len(line.strip()) <= 300:
+                    snippets.append(line.strip())
+                if len(snippets) >= 3:
+                    break
+            answers.append({"item": media_view(item), "snippets": snippets})
+    return render_template("intelligence/ask.html", q=q, answers=answers, back_url=url_for("main.hub", slug="smart"))
+
+
+@bp.route("/review")
+@login_required
+def review():
+    """Files the AI was unsure about - confirm or fix in one click."""
+    with engine.connect() as conn:
+        rows = [dict(r._mapping) for r in conn.execute(select(media).where(
+            media.c.user_id == g.user["id"], media.c.is_deleted.is_(False), media.c.review_dismissed.is_(False),
+            media.c.category_locked.is_(False), media.c.ai_status == "done",
+            ((media.c.category == "other") | (media.c.ai_confidence < 0.5))).order_by(media.c.created_at.desc()).limit(60)).all()]
+    return render_template("intelligence/review.html", items=[media_view(r) for r in rows], back_url=url_for("main.hub", slug="smart"))
+
+
+@bp.route("/review/<media_id>", methods=["POST"])
+@login_required
+def review_action(media_id):
+    category = request.form.get("category", "")
+    values = {"updated_at": utcnow(), "review_dismissed": True}
+    if not request.form.get("dismiss") and category in classifier.CATEGORY_LABEL:
+        values.update(category=category, category_locked=True)
+        classifier.forget_user_model(g.user["id"])
+    with engine.begin() as conn:
+        conn.execute(update(media).where(media.c.id == media_id, media.c.user_id == g.user["id"]).values(**values))
+    return redirect(url_for("intelligence.review"))

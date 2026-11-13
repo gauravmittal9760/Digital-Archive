@@ -3,7 +3,7 @@ services:
     name: digital-archive
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: apt-get update && apt-get install -y tesseract-ocr tesseract-ocr-eng && pip install -r requirements.txt
     startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 app:app
     healthCheckPath: /health
     envVars:
@@ -17,6 +17,8 @@ services:
       - {key: CLOUDINARY_API_SECRET, sync: false}
       - {key: BREVO_API_KEY, sync: false}
       - {key: BREVO_SENDER_EMAIL, sync: false}
+      - {key: ENABLE_OCR, value: "true"}
+      - {key: TESSERACT_CMD, value: tesseract}
       - {key: GEMINI_API_KEY, sync: false}
       - {key: CRON_SECRET, sync: false}
       - {key: ADMIN_USERNAME, sync: false}

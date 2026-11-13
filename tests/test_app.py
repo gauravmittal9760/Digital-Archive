@@ -92,12 +92,21 @@ def test_two_step_login(client):
     code = _dev_code(client)
     client.post("/settings/security/two-step/verify", data=dict(csrf_token=token(client, "/settings/security/two-step/verify"), code=code))
     client.post("/logout", data=dict(csrf_token=token(client, "/gallery")))
-    client.post("/login", data=dict(csrf_token=token(client), username="fay", password=PW))   # no redirect: keep the flash
+    client.post("/login", data=dict(csrf_token=token(client), username="fay", password=PW))   # password accepted, 2FA still pending
+    from database import engine, login_history, profiles
+    from sqlalchemy import select, func
+    with engine.connect() as conn:
+        user_id = conn.execute(select(profiles.c.id).where(profiles.c.username == "fay")).scalar_one()
+        before = conn.execute(select(func.count()).select_from(login_history).where(login_history.c.user_id == user_id)).scalar()
+    assert before == 1  # the earlier direct login only; pending 2FA is not a completed login
     code = _dev_code(client)
     page = client.get("/login/verify").data
     assert b"Two-step verification" in page and b"Hello, fay" not in page
     r = client.post("/login/verify", data=dict(csrf_token=token(client, "/login/verify"), code=code), follow_redirects=True)
     assert b"Hello, fay" in r.data
+    with engine.connect() as conn:
+        after = conn.execute(select(func.count()).select_from(login_history).where(login_history.c.user_id == user_id)).scalar()
+    assert after == 2
 
 
 def _png(color=(200, 120, 40)):

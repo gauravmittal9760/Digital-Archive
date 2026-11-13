@@ -215,7 +215,7 @@ def extract_features(small: Image.Image, exif: dict, size: tuple[int, int]) -> d
     white = sum(hist[205:]) / count
     dark = sum(hist[:90]) / count
     hsv = rgb.resize((64, 64), Image.Resampling.BILINEAR).convert("HSV")
-    hs, ss, vs = [list(band.getdata()) for band in hsv.split()]
+    hs, ss, vs = [list(band.get_flattened_data()) for band in hsv.split()]
     n = len(hs)
     sat_mean = sum(ss) / (255.0 * n)
     warm = green = blue = 0
@@ -230,7 +230,7 @@ def extract_features(small: Image.Image, exif: dict, size: tuple[int, int]) -> d
             blue += 1
     warm, green, blue = warm / n, green / n, blue / n
 
-    pixels = list(gray.getdata())
+    pixels = list(gray.get_flattened_data())
     flat_pairs = total_pairs = 0
     for row in range(0, height, 2):
         base = row * width

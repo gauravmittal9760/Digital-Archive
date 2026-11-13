@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "Digital Archive",
+  "short_name": "Archive",
+  "description": "Your private, organised personal media archive.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f7f8ff",
+  "theme_color": "#3341e8",
+  "icons": [
+    {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}

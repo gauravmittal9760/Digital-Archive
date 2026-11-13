@@ -7,7 +7,7 @@ import secrets
 import time
 from datetime import timedelta
 
-from flask import Flask, abort, g, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, abort, g, jsonify, redirect, render_template, request, send_from_directory, session, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 import config
@@ -34,13 +34,28 @@ def create_app() -> Flask:
 
     init_db()
 
-    from routes import admin, albums, auth, cron, intelligence, main, media, account
-    for module in (auth, main, media, albums, intelligence, account, admin, cron):
+    from routes import admin, albums, auth, cron, intelligence, main, media, account, vault
+    for module in (auth, main, media, albums, intelligence, account, admin, cron, vault):
         app.register_blueprint(module.bp)
 
     app.jinja_env.globals["csrf_token"] = csrf_token
     register_hooks(app)
     register_errors(app)
+
+    @app.get("/manifest.webmanifest")
+    def app_manifest():
+        return send_from_directory(app.static_folder, "manifest.webmanifest", mimetype="application/manifest+json")
+
+    @app.get("/sw.js")
+    def service_worker():
+        response = send_from_directory(app.static_folder, "sw.js", mimetype="application/javascript")
+        response.headers["Service-Worker-Allowed"] = "/"
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+    @app.get("/offline.html")
+    def offline_page():
+        return send_from_directory(app.static_folder, "offline.html")
 
     if not os.getenv("DISABLE_BACKGROUND_JOBS"):
         from services import trash_service
@@ -123,7 +138,7 @@ def register_hooks(app: Flask) -> None:
         response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
         if config.IS_PRODUCTION:
             response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-        if request.endpoint != "static" and (g.get("user") or request.blueprint in {"admin", "auth"}):
+        if request.endpoint not in ("static", "media.delivery") and (g.get("user") or request.blueprint in {"admin", "auth"}):
             response.headers["Cache-Control"] = "no-store, private, max-age=0"
         return response
 

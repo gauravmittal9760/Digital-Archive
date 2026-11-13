@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 from collections import Counter
+from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from flask import Blueprint, abort, g, redirect, render_template, url_for
-from sqlalchemy import select
+from sqlalchemy import extract, func, select
 
+import config
 from database import engine, media
 from routes.common import login_required, media_view
 from services import ai_service, classifier, stats_service
@@ -15,7 +18,7 @@ bp = Blueprint("main", __name__)
 # slug -> hub definition. Each item: (label, description, endpoint, kwargs, icon)
 HUBS = {
     "library": {
-        "title": "My Library", "icon": "image", "tone": "indigo",
+        "title": "My Gallery", "icon": "image", "tone": "indigo",
         "blurb": "Everything you have saved, organised the way you remember it.",
         "items": [
             ("Upload", "Add photos, videos & documents", "media.upload", {}, "upload"),
@@ -26,6 +29,8 @@ HUBS = {
             ("Favorites", "Your starred memories", "media.gallery", {"fav": 1}, "heart"),
             ("Albums", "Collections you created", "albums.index", {}, "folder"),
             ("Timeline", "Explore by date", "media.timeline", {}, "clock"),
+            ("On This Day", "Rediscover memories from past years", "main.on_this_day", {}, "history"),
+            ("Private Vault", "Encrypted, passphrase-protected files", "vault.index", {}, "lock"),
             ("Trash", "Restore or delete for good", "media.trash", {}, "trash"),
         ]},
     "smart": {
@@ -35,6 +40,9 @@ HUBS = {
             ("Smart Search", "Ask like “meri 10th ki marksheet”", "intelligence.search", {}, "search"),
             ("Auto Categories", "Festivals, travel, medical, marksheets…", "media.categories", {}, "tag"),
             ("AI & ML Studio", "Groups and unusual files", "intelligence.studio", {}, "cpu"),
+            ("Ask Your Archive", "Find answers inside your documents", "intelligence.ask", {}, "search"),
+            ("Expiry Tracker", "Passport, insurance, warranty dates", "intelligence.expiry", {}, "clock"),
+            ("Review Queue", "Confirm files the AI was unsure about", "intelligence.review", {}, "check"),
             ("Duplicate Finder", "Exact and look-alike copies", "intelligence.duplicates", {}, "copy"),
         ]},
     "storage": {
@@ -83,8 +91,10 @@ def dashboard():
             media.c.user_id == uid, media.c.is_deleted.is_(False))).all())
     top = [{"id": c, "label": classifier.CATEGORY_LABEL[c], "color": classifier.CATEGORY_COLOR[c], "count": n}
            for c, n in cats.most_common(6) if c != "other" or len(cats) == 1]
+    from services import reminder_service
+    expiring_soon = len([i for i in reminder_service.expiring(uid, within_days=30)])
     hubs = [{"slug": slug, **{k: v for k, v in hub.items() if k != "items"}, "count": len(hub["items"])} for slug, hub in HUBS.items()]
-    return render_template("dashboard.html", counts=counts, overview=overview, recent=recent, top_categories=top, hubs=hubs)
+    return render_template("dashboard.html", counts=counts, overview=overview, recent=recent, top_categories=top, hubs=hubs, expiring_soon=expiring_soon)
 
 
 @bp.route("/hub/<slug>")
@@ -94,3 +104,25 @@ def hub(slug):
     if not definition:
         abort(404)
     return render_template("hub.html", hub=definition, items=_resolve(definition["items"]), back_url=url_for("main.dashboard"))
+
+
+@bp.route("/on-this-day")
+@login_required
+def on_this_day():
+    """Show the user's own memories from this calendar day in earlier years."""
+    try:
+        today = datetime.now(ZoneInfo(config.APP_TIMEZONE)).date()
+    except (ZoneInfoNotFoundError, ValueError):
+        today = datetime.now().date()
+    remembered_date = func.coalesce(media.c.captured_at, media.c.created_at)
+    stmt = select(media).where(
+        media.c.user_id == g.user["id"], media.c.is_deleted.is_(False),
+        extract("month", remembered_date) == today.month,
+        extract("day", remembered_date) == today.day,
+        extract("year", remembered_date) < today.year,
+    ).order_by(remembered_date.desc()).limit(120)
+    with engine.connect() as conn:
+        rows = [media_view(dict(r._mapping)) for r in conn.execute(stmt).all()]
+    years = sorted({(item.get("captured_at") or item.get("created_at")).year for item in rows}, reverse=True)
+    return render_template("media/on_this_day.html", items=rows, today=today, years=years,
+                           back_url=url_for("main.dashboard"))

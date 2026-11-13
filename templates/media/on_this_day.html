@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}On This Day{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><span class="chip ai">{{ ui.icon('history') }} Memory Rewind</span><h1>On this day</h1><p>Memories from {{ today.strftime('%d %B') }} in previous years. Only your own archive is shown here.</p></div></div>
+{% if items %}
+<div class="row between mt"><h2>From years gone by</h2><span class="muted small">{{ items|length }} memories · {{ years|length }} years</span></div>
+{% for year in years %}<div class="sec-title"><h2>{{ year }}</h2></div><div class="media-grid">{% for item in items if (item.captured_at or item.created_at).year == year %}{{ ui.media_card(item) }}{% endfor %}</div>{% endfor %}
+{% else %}
+<div class="card empty"><div class="ico">{{ ui.icon('history') }}</div><h3>No memories from this date yet</h3><p>When your archive has photos or documents from this day in earlier years, they will appear here automatically.</p><a class="btn mt" href="{{ url_for('media.upload') }}">{{ ui.icon('upload') }}Add a memory</a></div>
+{% endif %}
+{% endblock %}

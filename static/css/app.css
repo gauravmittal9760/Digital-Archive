@@ -172,3 +172,45 @@ table{width:100%;border-collapse:collapse;font-size:.92rem}th,td{padding:.75rem 
 .footer{text-align:center;color:var(--faint);font-size:.82rem;padding:2rem 1rem}
 @media (max-width:860px){.auth-wrap{grid-template-columns:1fr;gap:1.5rem}.auth-art{min-height:240px;padding:1.5rem}.auth-art ul{display:none}.split{grid-template-columns:1fr}.nav{display:none}.page{padding-bottom:6rem}.hero{padding:1.4rem}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ===== premium motion layer (GPU-friendly, disabled by prefers-reduced-motion above/below) ===== */
+body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none;opacity:.55;
+  background:radial-gradient(40% 35% at 20% 25%,color-mix(in srgb,var(--brand) 22%,transparent),transparent 70%),
+             radial-gradient(35% 30% at 80% 15%,color-mix(in srgb,var(--brand2) 20%,transparent),transparent 70%),
+             radial-gradient(40% 35% at 70% 85%,color-mix(in srgb,var(--ai) 14%,transparent),transparent 70%);
+  animation:mesh 22s ease-in-out infinite alternate;will-change:transform}
+@keyframes mesh{to{transform:translate3d(3%,-2%,0) scale(1.08) rotate(2deg)}}
+.topbar{transition:box-shadow .3s,background .3s}.topbar.scrolled{box-shadow:0 10px 30px -18px rgba(20,24,70,.35)}
+.nav a{position:relative;transition:color .2s,background .2s,transform .2s}.nav a:hover{transform:translateY(-1px)}
+.nav a.on::after{content:"";position:absolute;left:22%;right:22%;bottom:2px;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--brand),var(--brand2));animation:grow .35s ease both}
+@keyframes grow{from{transform:scaleX(0)}}
+/* staggered entrance */
+.bento>*,.grid>*,.media-grid>*,.stat,.tile,.list-row,.card,.q-item{animation:rise .5s cubic-bezier(.2,.7,.2,1) both}
+.bento>*:nth-child(2),.grid>*:nth-child(2),.media-grid>*:nth-child(2){animation-delay:.05s}.bento>*:nth-child(3),.grid>*:nth-child(3),.media-grid>*:nth-child(3){animation-delay:.1s}
+.bento>*:nth-child(4),.grid>*:nth-child(4),.media-grid>*:nth-child(4){animation-delay:.15s}.bento>*:nth-child(5),.grid>*:nth-child(5),.media-grid>*:nth-child(5){animation-delay:.2s}
+.bento>*:nth-child(n+6),.grid>*:nth-child(n+6),.media-grid>*:nth-child(n+6){animation-delay:.25s}
+/* interactive cards: lift + cursor spotlight */
+.card,.tile,.stat,.m-card{position:relative;transition:transform .25s cubic-bezier(.2,.7,.2,1),box-shadow .25s,border-color .25s}
+.tile:hover,.stat:hover,.m-card:hover,a.card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:color-mix(in srgb,var(--brand) 45%,var(--line))}
+.tile::after,.stat::after,a.card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .3s;
+  background:radial-gradient(260px circle at var(--mx,50%) var(--my,50%),color-mix(in srgb,var(--brand) 16%,transparent),transparent 65%)}
+.tile:hover::after,.stat:hover::after,a.card:hover::after{opacity:1}
+.m-thumb{background:linear-gradient(100deg,var(--surface2) 30%,var(--bg2) 50%,var(--surface2) 70%);background-size:200% 100%;animation:shimmer 1.4s linear infinite}
+.m-thumb img{transition:transform .5s cubic-bezier(.2,.7,.2,1),opacity .4s}.m-card:hover .m-thumb img{transform:scale(1.06)}
+@keyframes shimmer{to{background-position:-200% 0}}
+/* buttons: shine sweep + press */
+.btn{position:relative;overflow:hidden;isolation:isolate}
+.btn:not(.ghost):not(.soft)::before{content:"";position:absolute;top:0;left:-70%;width:50%;height:100%;z-index:-1;transform:skewX(-20deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);transition:left .6s}
+.btn:not(.ghost):not(.soft):hover::before{left:130%}.btn:active{transform:scale(.97)}
+.icon-btn:active{transform:scale(.92)}
+.chip,.m-badge{transition:transform .2s}.chip:hover{transform:scale(1.05)}
+/* hero + vault flavour */
+.hero{background-size:180% 180%;animation:rise .5s ease both,hue 14s ease-in-out infinite alternate}@keyframes hue{to{background-position:100% 50%}}
+.empty .ic{animation:floaty 4s ease-in-out infinite}@keyframes floaty{50%{transform:translateY(-6px)}}
+.danger-zone{border:1px dashed var(--err);border-radius:var(--r-sm);padding:.75rem 1rem;background:var(--err-soft)}.danger-zone summary{cursor:pointer;font-weight:600;color:var(--err)}
+details>summary{transition:color .2s}details[open]>summary{margin-bottom:.4rem}details[open]>*:not(summary){animation:rise .3s ease both}
+.vault-lock{display:grid;place-items:center;width:84px;height:84px;margin:0 auto 1rem;border-radius:28px;color:#fff;font-size:2.2rem;background:linear-gradient(135deg,var(--brand),var(--brand2));box-shadow:0 16px 40px -12px var(--brand);animation:floaty 4s ease-in-out infinite}
+.page-head h1{background:linear-gradient(90deg,var(--ink),color-mix(in srgb,var(--brand) 70%,var(--ink)));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.toast{animation:slide .4s cubic-bezier(.2,.7,.2,1) both}
+@media (prefers-reduced-motion:reduce){body::before{animation:none}.m-thumb{animation:none}}
+.danger-zone .hint{color:var(--ink)}

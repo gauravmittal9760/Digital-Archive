@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Unlock vault{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Unlock vault</h1><p>Enter your vault passphrase.</p></div></div>
+<div class="card" style="max-width:420px">
+<div class="vault-lock">{{ ui.icon('lock') }}</div>
+{% if wait %}<div class="flash error">Too many attempts. Try again in {{ wait // 60 + 1 }} min.</div>{% endif %}
+<form method="post" action="{{ url_for('vault.unlock') }}">{{ ui.csrf() }}{{ ui.pw('passphrase','Passphrase',autocomplete='off') }}<button class="btn mt" {% if wait %}disabled{% endif %}>{{ ui.icon('lock') }}Unlock</button></form>
+<details class="mt"><summary>Forgot passphrase? Use recovery key</summary>
+<form method="post" action="{{ url_for('vault.passphrase') }}" class="mt">{{ ui.csrf() }}
+<label class="field"><span>Recovery key</span><input name="recovery" required autocomplete="off" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"></label>
+{{ ui.pw('new','New passphrase',autocomplete='new-password') }}<button class="btn soft mt">Reset passphrase</button></form></details><details class="mt danger-zone"><summary>Lost both passphrase and recovery key?</summary>
+<p class="hint mt">Nobody can decrypt the files, so the only option is to <b>permanently delete everything in the vault</b> and start a new one. This frees the storage space.</p>
+<form method="post" action="{{ url_for('vault.erase') }}" class="mt">{{ ui.csrf() }}
+{{ ui.pw('account_password','Your account login password',autocomplete='current-password') }}
+<label class="field"><span>Type ERASE to confirm</span><input name="confirm" required autocomplete="off" placeholder="ERASE"></label>
+<button class="btn danger mt" onclick="return confirm('This permanently deletes ALL files in your vault. Continue?')">Erase vault &amp; start over</button></form></details></div>
+
+{% endblock %}

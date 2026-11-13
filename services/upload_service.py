@@ -51,8 +51,6 @@ def ingest(user: dict, storage, tags: str = "", description: str = "", chosen_ca
             return UploadResult(status="error", message=f"{filename}: the content does not match a valid {media_type}.")
 
         used = stats_service.storage_used(user_id) if used_bytes is None else used_bytes
-        if used + len(data) * 0.9 > stats_service.QUOTA_BYTES:
-            return UploadResult(status="error", message=f"{filename}: your {stats_service.human_size(stats_service.QUOTA_BYTES)} storage is full.")
 
         orig_checksum = media_service.sha256_hex(data)
         duplicate = _find_exact_duplicate(user_id, orig_checksum)
@@ -91,6 +89,12 @@ def ingest(user: dict, storage, tags: str = "", description: str = "", chosen_ca
             content_type, ext, near = mimetype, None, None
             extracted_text = media_service.extract_document_text(data, mimetype)
 
+        # Check the actual processed payload rather than the old 90%-of-original guess.
+        # This includes the thumbnail because thumbnails also consume the user's quota.
+        expected_bytes = len(stored) + len(thumb_bytes or b"")
+        if used + expected_bytes > stats_service.QUOTA_BYTES:
+            return UploadResult(status="error", message=f"{filename}: this upload would exceed your {stats_service.human_size(stats_service.QUOTA_BYTES)} storage quota.")
+
         path = media_service.generate_storage_path(user_id, media_type, filename, ext and (ext if ext.startswith(".") or media_type == "photo" else "." + ext), unique)
         result = storage_service.upload_bytes(path, stored, content_type, compress_video=compress_in_cloud)
         stored_size = int(result.get("bytes") or len(stored))
@@ -112,6 +116,14 @@ def ingest(user: dict, storage, tags: str = "", description: str = "", chosen_ca
                "checksum": media_service.sha256_hex(stored), "orig_checksum": orig_checksum, "phash": phash,
                "is_favorite": False, "is_deleted": False, "created_at": utcnow(), "updated_at": utcnow()}
 
+        if extracted_text:
+            from services import doc_intel
+            found = doc_intel.analyze(extracted_text, filename)
+            if found["doc_type"]:
+                row.update(doc_type=found["doc_type"], doc_title=found["doc_title"])
+            if found["expiry_date"]:
+                row["expiry_date"] = found["expiry_date"]
+
         guess = classifier.classify_local(row, features, ai_service.user_model_for(user_id))
         chosen = (chosen_category or "auto").strip().lower()
         if chosen != "auto" and chosen in classifier.CATEGORY_LABEL:
@@ -123,10 +135,14 @@ def ingest(user: dict, storage, tags: str = "", description: str = "", chosen_ca
             if ai_jpeg and user.get("ai_enabled", True) and (ai_service.vision_available() or ai_service.ocr_available() or ai_service.local_vision_available()):
                 row["ai_status"] = "pending"
         try:
-            with engine.begin() as conn:
+            # Authoritative quota check, serialised per user and in the same transaction as the INSERT.
+            with stats_service.quota_transaction(user_id, stored_size + thumb_size) as conn:
                 conn.execute(insert(media).values(**row))
+        except stats_service.QuotaExceeded:
+            storage_service.delete_or_queue([path, thumb_path])
+            return UploadResult(status="error", message=f"{filename}: this upload would exceed your {stats_service.human_size(stats_service.QUOTA_BYTES)} storage quota.")
         except Exception:
-            storage_service.delete_objects([path, thumb_path])      # never leave orphans behind
+            storage_service.delete_or_queue([path, thumb_path])      # never leave orphans behind
             raise
         if row["ai_status"] == "pending":
             ai_service.submit(row["id"], ai_jpeg)

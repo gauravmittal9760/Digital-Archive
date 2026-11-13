@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Private Vault{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Private Vault</h1><p>{{ items|length }} encrypted file(s) · {{ human_size(used) }} · auto-locks after {{ ttl }} min idle</p></div>
+<form method="post" action="{{ url_for('vault.lock') }}">{{ ui.csrf() }}<button class="btn soft">{{ ui.icon('lock') }}Lock now</button></form></div>
+<form method="post" action="{{ url_for('vault.upload') }}" enctype="multipart/form-data" class="card mb row">{{ ui.csrf() }}
+<input type="file" name="files" multiple required><button class="btn">{{ ui.icon('upload') }}Encrypt &amp; add</button><span class="hint">Up to 20 MB per file.</span></form>
+{% if items %}<div class="table-wrap"><table><thead><tr><th>File</th><th>Size</th><th>Added</th><th></th></tr></thead><tbody>
+{% for i in items %}<tr><td>{{ i.file_name }}</td><td>{{ human_size(i.plain_size) }}</td><td>{{ i.created_at|dt('%d %b %Y') }}</td>
+<td class="row"><a class="btn ghost sm" href="{{ url_for('vault.download', item_id=i.id) }}" target="_blank" rel="noopener">Open</a>
+<a class="btn ghost sm" href="{{ url_for('vault.download', item_id=i.id, download=1) }}">Download</a>
+<form method="post" action="{{ url_for('vault.restore', item_id=i.id) }}">{{ ui.csrf() }}<button class="btn ghost sm">Move to library</button></form>
+<form method="post" action="{{ url_for('vault.delete', item_id=i.id) }}" onsubmit="return confirm('Delete permanently? This cannot be undone.')">{{ ui.csrf() }}<button class="btn danger ghost sm">Delete</button></form></td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<div class="empty">{{ ui.icon('lock') }}<h3>Vault is empty</h3><p>Add files above, or use “Move to Vault” on any file in your library.</p></div>{% endif %}
+<details class="card mt"><summary>Change passphrase</summary><form method="post" action="{{ url_for('vault.passphrase') }}" class="mt">{{ ui.csrf() }}
+{{ ui.pw('current','Current passphrase',autocomplete='off') }}{{ ui.pw('new','New passphrase',autocomplete='new-password') }}<button class="btn soft mt">Change</button></form></details>
+{% endblock %}

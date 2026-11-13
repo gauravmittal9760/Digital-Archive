@@ -19,7 +19,8 @@ FLOW_TTL = 15 * 60
 
 # ------------------------------------------------------------------------- helpers
 def _start_session(user: dict) -> None:
-    theme = request.cookies.get("da_theme")
+    # A login is complete only here: normal password login or successful 2FA.
+    auth_service.record_successful_login(user)
     session.clear()
     session["uid"], session["sv"] = user["id"], user["session_version"]
     session["csrf_token"] = secrets.token_urlsafe(32)
