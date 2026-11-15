@@ -270,3 +270,23 @@ def test_vault_unlock_is_shared_via_database_and_revocable(app):
     token2 = vault_service.unlock(uid, "session passphrase")
     vault_service.lock(token2)
     assert vault_service.key_for(uid, token2) is None                             # lock revokes server-side
+
+
+def test_postgres_url_uses_pure_python_driver_and_cleans_neon_options():
+    import importlib, config
+    from database import postgres_engine_settings
+    url, args = postgres_engine_settings("postgresql+pg8000://u:p%40ss@ep-x-pooler.ap-south-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require")
+    assert url.drivername == "postgresql+pg8000" and dict(url.query) == {} and url.password == "p@ss"
+    assert args["ssl_context"] is True and args["timeout"] == 30
+    _, args = postgres_engine_settings("postgresql+pg8000://u:p@localhost/db?sslmode=disable")
+    assert "ssl_context" not in args
+    url, args = postgres_engine_settings("postgresql+psycopg://u:p@h/db?sslmode=require")     # explicit psycopg still supported
+    assert url.drivername == "postgresql+psycopg" and args["prepare_threshold"] is None
+    import os
+    for given in ("postgres://u:p@h/db", "postgresql://u:p@h/db"):
+        os.environ["DATABASE_URL"] = given
+        try:
+            assert importlib.reload(config).DATABASE_URL == "postgresql+pg8000://u:p@h/db"
+        finally:
+            os.environ.pop("DATABASE_URL", None)
+            importlib.reload(config)
