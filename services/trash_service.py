@@ -94,15 +94,13 @@ def start_background_purger(interval_seconds: int = 3600) -> None:
                 purge_expired()
             except Exception:
                 log.exception("Background purge failed")
-            try:
-                from services import ai_service, reminder_service
-                ai_service.resume_pending()
-                reminder_service.run_reminders()
-                from services import storage_service, vault_service
-                storage_service.process_cleanup()
-                vault_service.purge_sessions()
-            except Exception:
-                log.exception("Background maintenance failed")
+            from services import ai_service, reminder_service, storage_service, vault_service
+            for name, job in (("AI resume", ai_service.resume_pending), ("expiry reminders", reminder_service.run_reminders),
+                              ("storage cleanup", storage_service.process_cleanup), ("vault sessions", vault_service.purge_sessions)):
+                try:                                    # one failing job must never block the others
+                    job()
+                except Exception:
+                    log.exception("Background job failed: %s", name)
             time.sleep(interval_seconds)
 
     threading.Thread(target=loop, name="trash-purger", daemon=True).start()

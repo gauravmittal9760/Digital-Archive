@@ -347,6 +347,28 @@ def postgres_engine_settings(url_string: str):
     return url, {"connect_timeout": 15, "prepare_threshold": None}
 
 
+def install_liveness_check(eng) -> None:
+    """Replace SQLAlchemy's pre-ping with one that also survives raw TLS/socket errors.
+
+    Neon (and NAT gateways) silently kill idle connections. With pg8000 the dead socket can surface as
+    ssl.SSLError / OSError, which SQLAlchemy's built-in pre-ping does not treat as a disconnect, so the error
+    reached the request. Raising DisconnectionError from a checkout hook makes the pool discard the dead
+    connection and transparently open a fresh one.
+    """
+    from sqlalchemy import exc as sa_exc
+
+    @event.listens_for(eng, "checkout")
+    def _liveness(dbapi_connection, _record, _proxy):
+        try:
+            cursor = dbapi_connection.cursor()
+            try:
+                cursor.execute("SELECT 1")
+            finally:
+                cursor.close()
+        except Exception as exc:                          # noqa: BLE001 - any failure here means the socket is unusable
+            raise sa_exc.DisconnectionError(str(exc)) from exc
+
+
 if not DATABASE_URL.startswith("sqlite"):
     _pg_url, _pg_connect_args = postgres_engine_settings(DATABASE_URL)
 if DATABASE_URL.startswith("sqlite"):
@@ -360,8 +382,9 @@ if DATABASE_URL.startswith("sqlite"):
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.close()
 else:
-    engine = create_engine(_pg_url, pool_pre_ping=True, pool_size=3, max_overflow=2, pool_recycle=240, future=True,
+    engine = create_engine(_pg_url, pool_pre_ping=False, pool_size=3, max_overflow=2, pool_recycle=180, future=True,
                            connect_args=_pg_connect_args)
+    install_liveness_check(engine)
 
 
 # --------------------------------------------------------------------- migrations

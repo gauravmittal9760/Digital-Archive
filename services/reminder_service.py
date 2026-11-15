@@ -10,7 +10,7 @@ from datetime import date, timedelta
 
 from sqlalchemy import select, update
 
-from database import engine, media, users, utcnow
+from database import engine, media, profiles, users, utcnow
 from services import mail_service
 
 log = logging.getLogger(__name__)
@@ -46,8 +46,9 @@ def run_reminders(today: date | None = None, limit: int = 200) -> int:
     sent = 0
     with engine.connect() as conn:
         rows = conn.execute(select(media.c.id, media.c.user_id, media.c.file_name, media.c.doc_title, media.c.expiry_date,
-                                   media.c.expiry_notice, users.c.email, users.c.username, users.c.reminders_enabled)
+                                   media.c.expiry_notice, users.c.email, profiles.c.username, users.c.reminders_enabled)
                             .join(users, users.c.id == media.c.user_id)
+                            .join(profiles, profiles.c.id == users.c.id)
                             .where(media.c.is_deleted.is_(False), media.c.expiry_date.is_not(None),
                                    media.c.expiry_date <= horizon, users.c.reminders_enabled.is_(True),
                                    users.c.is_blocked.is_(False)).limit(limit)).mappings().all()

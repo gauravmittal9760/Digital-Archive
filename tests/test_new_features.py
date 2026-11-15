@@ -290,3 +290,49 @@ def test_postgres_url_uses_pure_python_driver_and_cleans_neon_options():
         finally:
             os.environ.pop("DATABASE_URL", None)
             importlib.reload(config)
+
+
+def test_reminders_run_with_real_user_and_do_not_resend(client):
+    from datetime import date, timedelta
+    from sqlalchemy import insert, select
+    from database import engine, media, new_id, users, utcnow
+    from services import reminder_service
+    _user(client, "remind1")
+    with engine.connect() as c:
+        uid = c.execute(select(users.c.id).where(users.c.email == "remind1@example.com")).scalar()
+    mid = new_id()
+    with engine.begin() as c:
+        c.execute(insert(media).values(id=mid, user_id=uid, file_name="passport.pdf", storage_path=f"{uid}/documents/p.pdf", media_type="document",
+                                       mime_type="application/pdf", file_size=10, category="identity", is_deleted=False, is_favorite=False,
+                                       doc_title="Passport", expiry_date=date.today() + timedelta(days=6), created_at=utcnow(), updated_at=utcnow()))
+    assert reminder_service.run_reminders() == 1          # 6 days left -> stage 2 (7-day notice)
+    assert reminder_service.run_reminders() == 0          # already sent, never twice
+
+
+def test_dead_connection_is_replaced_not_raised(tmp_path):
+    import sqlite3, ssl
+    from sqlalchemy import create_engine, text
+    from database import install_liveness_check
+    made = []
+
+    class Flaky(sqlite3.Connection):
+        bad = False
+        def cursor(self, *a, **k):
+            if self.bad:
+                raise ssl.SSLError("DECRYPTION_FAILED_OR_BAD_RECORD_MAC")
+            return super().cursor(*a, **k)
+
+    def creator():
+        conn = sqlite3.connect(str(tmp_path / "x.db"), factory=Flaky, check_same_thread=False)
+        made.append(conn)
+        return conn
+
+    from sqlalchemy.pool import QueuePool
+    eng = create_engine("sqlite://", creator=creator, poolclass=QueuePool, pool_size=1, max_overflow=0)
+    install_liveness_check(eng)
+    with eng.connect() as c:
+        assert c.execute(text("select 1")).scalar() == 1
+    made[0].bad = True                                       # the idle connection "dies"
+    with eng.connect() as c:                                 # must silently reconnect, not raise ssl.SSLError
+        assert c.execute(text("select 2")).scalar() == 2
+    assert len(made) == 2
