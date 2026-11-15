@@ -336,3 +336,21 @@ def test_dead_connection_is_replaced_not_raised(tmp_path):
     with eng.connect() as c:                                 # must silently reconnect, not raise ssl.SSLError
         assert c.execute(text("select 2")).scalar() == 2
     assert len(made) == 2
+
+
+def test_dead_connection_close_noise_is_hidden_but_real_errors_are_not():
+    import logging
+    from database import QuietDeadConnectionLog
+    class InterfaceError(Exception):
+        pass
+    f = QuietDeadConnectionLog()
+    def rec(msg, exc):
+        try:
+            raise exc
+        except Exception:
+            import sys
+            return logging.LogRecord("x", logging.ERROR, __file__, 1, msg, None, sys.exc_info())
+    assert f.filter(rec("Exception terminating connection <c>", InterfaceError("network error"))) is False
+    assert f.filter(rec("Exception terminating connection <c>", OSError("reset"))) is False
+    assert f.filter(rec("Exception terminating connection <c>", ValueError("something else"))) is True
+    assert f.filter(rec("Some other pool error", InterfaceError("network error"))) is True

@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import datetime, timezone
 
@@ -368,6 +369,20 @@ def install_liveness_check(eng) -> None:
         except Exception as exc:                          # noqa: BLE001 - any failure here means the socket is unusable
             raise sa_exc.DisconnectionError(str(exc)) from exc
 
+
+class QuietDeadConnectionLog(logging.Filter):
+    """Hide the harmless 'Exception terminating connection' error SQLAlchemy logs when it closes a connection that the
+    server (Neon) had already dropped. The pool has already replaced it; the request itself succeeds."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.getMessage().startswith("Exception terminating connection") and record.exc_info:
+            kind = record.exc_info[0]
+            if kind and (issubclass(kind, OSError) or kind.__name__ in {"InterfaceError", "SSLError", "DisconnectionError"}):
+                return False
+        return True
+
+
+logging.getLogger("sqlalchemy.pool.impl.QueuePool").addFilter(QuietDeadConnectionLog())
 
 if not DATABASE_URL.startswith("sqlite"):
     _pg_url, _pg_connect_args = postgres_engine_settings(DATABASE_URL)
